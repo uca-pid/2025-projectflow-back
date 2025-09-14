@@ -1,5 +1,5 @@
-const app = require("./App");
-const PORT = 8080;
+import app from "./App.js";
+const PORT = 4000;
 
 app.listen(PORT, async () => {
   try {

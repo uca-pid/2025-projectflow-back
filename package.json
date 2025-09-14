@@ -1,5 +1,6 @@
 {
   "name": "2025-projectflow-back",
+  "type": "module",
   "version": "1.0.0",
   "description": "",
   "homepage": "https://github.com/uca-pid/2025-projectflow-back#readme",
@@ -12,13 +13,14 @@
   },
   "license": "ISC",
   "author": "",
-  "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "start": "clear && node App.js",
+    "start": "clear && node server.js",
     "test": "jest --runInBand"
   },
   "dependencies": {
+    "@prisma/client": "^6.16.0",
+    "better-auth": "^1.3.9",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",

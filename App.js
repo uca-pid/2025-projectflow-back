@@ -1,10 +1,11 @@
-var bodyParser = require("body-parser");
-const express = require("express");
-const cors = require("cors");
-const PORT = 8080;
+import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
+import bodyParser from "body-parser";
+import { auth } from "./auth.js";
+import express from "express";
+import cors from "cors";
 
-const taskRoutes = require("./routes/task.js");
-const userRoutes = require("./routes/user.js");
+import taskRoutes from "./routes/task.js";
+import userRoutes from "./routes/user.js";
 
 const app = express();
 
@@ -21,6 +22,26 @@ app.use(
   }),
 );
 
+app.all("/api/auth/{*any}", toNodeHandler(auth));
+
+app.get("/api/me", async (req, res) => {
+  const session = await auth.api.getSession({
+    headers: fromNodeHeaders(req.headers),
+  });
+  res.json(session);
+});
+
+// protect a route example
+app.get("/api/protected", async (req, res) => {
+  const session = await auth.api.getSession({
+    headers: fromNodeHeaders(req.headers),
+  });
+  if (!session || !session.user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  res.json({ secretData: "you got access", user: session.user });
+});
+
 //Routes
 app.use("/task", taskRoutes);
 app.use("/user", userRoutes);
@@ -30,5 +51,4 @@ app.get("/", (req, res) => {
   res.send("Hello World!").status(200);
 });
 
-//Export App for either testing or deployment
-module.exports = app;
+export default app;
