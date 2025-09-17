@@ -69,6 +69,7 @@ export const deleteUser = async (user, userToDeleteId) => {
 
   const deletedUser = await deleteUserDb(userToDeleteId);
   return deletedUser;
+};
 
 // Task functions
 export const getTasks = async (user) => {

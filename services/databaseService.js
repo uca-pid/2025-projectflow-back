@@ -53,24 +53,21 @@ export async function deleteUser(id) {
     },
   });
   return deletedUser;
-
+}
 // Task functions
 export async function getAllTasks(userId) {
   const tasks = await prisma.task.findMany({
     where: {
-      OR: [
-        { creatorId: userId },
-        { assignedUsers: { some: { id: userId } } }
-      ]
+      OR: [{ creatorId: userId }, { assignedUsers: { some: { id: userId } } }],
     },
     include: {
       creator: {
-        select: { id: true, name: true, email: true }
+        select: { id: true, name: true, email: true },
       },
       assignedUsers: {
-        select: { id: true, name: true, email: true }
-      }
-    }
+        select: { id: true, name: true, email: true },
+      },
+    },
   });
   return tasks;
 }
@@ -83,14 +80,14 @@ export async function createTask(userId, title, description, deadline) {
       deadline: deadline ? new Date(deadline) : null,
       creatorId: userId,
       assignedUsers: {
-        connect: { id: userId }
-      }
+        connect: { id: userId },
+      },
     },
     include: {
       creator: {
-        select: { id: true, name: true, email: true }
-      }
-    }
+        select: { id: true, name: true, email: true },
+      },
+    },
   });
   return task;
 }
@@ -100,10 +97,10 @@ export async function updateTask(taskId, userId, data) {
   const task = await prisma.task.findUnique({
     where: { id: parseInt(taskId) },
     include: {
-      assignedUsers: { where: { id: userId } }
-    }
+      assignedUsers: { where: { id: userId } },
+    },
   });
-  
+
   if (!task || (task.creatorId !== userId && task.assignedUsers.length === 0)) {
     throw new Error("No access to this task");
   }
@@ -113,9 +110,9 @@ export async function updateTask(taskId, userId, data) {
     data,
     include: {
       creator: {
-        select: { id: true, name: true, email: true }
-      }
-    }
+        select: { id: true, name: true, email: true },
+      },
+    },
   });
   return updatedTask;
 }
@@ -123,15 +120,15 @@ export async function updateTask(taskId, userId, data) {
 export async function deleteTask(taskId, userId) {
   // Check if user is creator
   const task = await prisma.task.findUnique({
-    where: { id: parseInt(taskId) }
+    where: { id: parseInt(taskId) },
   });
-  
+
   if (!task || task.creatorId !== userId) {
     throw new Error("Only creator can delete task");
   }
 
   await prisma.task.delete({
-    where: { id: parseInt(taskId) }
+    where: { id: parseInt(taskId) },
   });
   return { message: "Task deleted" };
 }
