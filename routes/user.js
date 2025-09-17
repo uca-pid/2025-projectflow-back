@@ -1,11 +1,15 @@
 import express from "express";
 import { auth } from "../auth.js";
 import { fromNodeHeaders } from "better-auth/node";
-import { getAllUsers } from "../services/requestHandler.js";
+import {
+  getAllUsers,
+  updateUser,
+  deleteUser,
+} from "../services/requestHandler.js";
 import { handleError } from "../services/errorHandler.js";
 
 // Middleware Function to protect routes, later move it elsewhere
-const loadUser = async (req, res, next) => {
+const authUser = async (req, res, next) => {
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(req.headers),
   });
@@ -31,10 +35,42 @@ router.get("/", async (req, res) => {
 });
 
 // Get all users
-router.get("/getAll", loadUser, async (req, res) => {
+router.get("/getAll", authUser, async (req, res) => {
   try {
+    console.log(`user: ${req.userSession.user}`);
     const users = await getAllUsers(req.userSession.user);
-    res.json({ data: users });
+    console.log(users);
+    res.status(200).json({ data: users });
+  } catch (error) {
+    handleError(error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put("/update/:userId", authUser, async (req, res) => {
+  try {
+    const userToUpdateId = req.params.userId;
+    const { userToUpdateData } = req.body;
+
+    const updatedUser = await updateUser(
+      req.userSession.user,
+      userToUpdateId,
+      userToUpdateData,
+    );
+
+    res.json({ data: updatedUser });
+  } catch (error) {
+    console.log(error);
+    handleError(error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete("/:userId", authUser, async (req, res) => {
+  try {
+    const userToDeleteId = req.params.userId;
+    const deletedUser = await deleteUser(req.userSession.user, userToDeleteId);
+    res.json({ data: deletedUser });
   } catch (error) {
     handleError(error);
     res.status(500).json({ error: error.message });
