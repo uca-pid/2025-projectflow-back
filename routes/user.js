@@ -37,8 +37,10 @@ router.get("/", async (req, res) => {
 // Get all users
 router.get("/getAll", authUser, async (req, res) => {
   try {
+    console.log(`user: ${req.userSession.user}`);
     const users = await getAllUsers(req.userSession.user);
-    res.json({ data: users });
+    console.log(users);
+    res.status(200).json({ data: users });
   } catch (error) {
     handleError(error);
     res.status(500).json({ error: error.message });
@@ -64,7 +66,7 @@ router.put("/update/:userId", authUser, async (req, res) => {
   }
 });
 
-router.delete("/delete/:userId", authUser, async (req, res) => {
+router.delete("/:userId", authUser, async (req, res) => {
   try {
     const userToDeleteId = req.params.userId;
     const deletedUser = await deleteUser(req.userSession.user, userToDeleteId);
