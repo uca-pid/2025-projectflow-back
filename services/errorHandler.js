@@ -1,11 +1,11 @@
-function handleError(err) {
+export function handleError(err) {
   if ("statusCode" in err) {
   } else {
     err["statusCode"] = 500;
   }
 }
 
-function throwError(code) {
+export function throwError(code) {
   var err = new Error();
   err["statusCode"] = code;
   switch (code) {
@@ -31,12 +31,6 @@ function throwError(code) {
   throw err;
 }
 
-function validateFields(fields) {
+export function validateFields(fields) {
   fields.forEach((field) => (!field ? throwError(400) : true));
 }
-
-module.exports = {
-  throwError,
-  handleError,
-  validateFields,
-};
