@@ -1,10 +1,13 @@
 import { throwError } from "./errorHandler.js";
-import { getAllUsers as getAllUsersDb, getAllTasks, createTask as createTaskDb, updateTask as updateTaskDb, deleteTask as deleteTaskDb } from "./databaseService.js";
+import {
+  getAllUsers as getAllUsersDb,
+  getAllTasks,
+  createTask as createTaskDb,
+  updateTask as updateTaskDb,
+  deleteTask as deleteTaskDb,
+} from "./databaseService.js";
 
 export const getAllUsers = async (user) => {
-  if (!user) {
-    throwError(401);
-  }
   if (user.role !== "ADMIN") {
     throwError(403);
   }
@@ -15,26 +18,23 @@ export const getAllUsers = async (user) => {
 
 // Task functions
 export const getTasks = async (user) => {
-  if (!user) {
-    throwError(401);
-  }
   const tasks = await getAllTasks(user.id);
   return tasks;
 };
 
 export const createTask = async (user, title, description, deadline) => {
-  if (!user) {
-    throwError(401);
-  }
   const task = await createTaskDb(user.id, title, description, deadline);
   return task;
 };
 
-export const updateTask = async (user, taskId, title, description, deadline, status) => {
-  if (!user) {
-    throwError(401);
-  }
-  
+export const updateTask = async (
+  user,
+  taskId,
+  title,
+  description,
+  deadline,
+  status,
+) => {
   const updateData = {};
   if (title) updateData.title = title;
   if (description !== undefined) updateData.description = description;
@@ -46,9 +46,6 @@ export const updateTask = async (user, taskId, title, description, deadline, sta
 };
 
 export const deleteTask = async (user, taskId) => {
-  if (!user) {
-    throwError(401);
-  }
   const result = await deleteTaskDb(taskId, user.id);
   return result;
 };
