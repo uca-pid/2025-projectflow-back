@@ -28,4 +28,18 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     },
   },
+  session: {
+    fields: {
+      role: true,
+    },
+  },
+  user: {
+    additionalFields: {
+      role: {
+        type: "enum",
+        enum: ["ADMIN", "USER"],
+        default: "USER",
+      },
+    },
+  },
 });

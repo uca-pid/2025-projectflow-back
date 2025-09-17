@@ -10,6 +10,7 @@ datasource db {
 }
 
 model User {
+  // Better Auth Generated Fields
   id            String    @id @default(cuid())
   email         String    @unique
   name          String
@@ -19,8 +20,15 @@ model User {
   updatedAt     DateTime  @default(now()) @updatedAt
   sessions      Session[]
   accounts      Account[]
-
   @@map("user")
+
+  // Custom Fields
+  role          Role      @default(USER)
+}
+
+enum Role {
+  ADMIN
+  USER
 }
 
 model Session {

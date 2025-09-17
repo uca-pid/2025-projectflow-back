@@ -1,18 +1,14 @@
-const { generateToken } = require("./tokenManager");
+import { throwError } from "./errorHandler.js";
+import { getAllUsers as getAllUsersDb } from "./databaseService.js";
 
-async function createUser(name, email, password) {
-  // Create User
-  // Return a token
-  return generateToken();
-}
+export const getAllUsers = async (user) => {
+  if (!user) {
+    throwError(401);
+  }
+  if (user.role !== "ADMIN") {
+    throwError(403);
+  }
 
-async function loginUser(email, password) {
-  // Login User
-  // Return a token
-  return generateToken();
-}
-
-module.exports = {
-  createUser,
-  loginUser,
+  const users = await getAllUsersDb();
+  return users;
 };

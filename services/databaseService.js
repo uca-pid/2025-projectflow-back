@@ -1,7 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-import dotenv from "dotenv";
-
-dotenv.config({ path: __dirname + "/../.env" });
+import { PrismaClient } from "../prisma/generated/prisma/index.js";
 
 export const prisma = new PrismaClient();
 
@@ -17,4 +14,9 @@ export async function connectToDatabase() {
 
 export async function disconnectFromDatabase() {
   await prisma.$disconnect();
+}
+
+export async function getAllUsers() {
+  const users = await prisma.user.findMany();
+  return users;
 }
