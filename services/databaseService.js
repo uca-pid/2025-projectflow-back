@@ -67,6 +67,9 @@ export async function getAllTasks(userId) {
       assignedUsers: {
         select: { id: true, name: true, email: true },
       },
+      appliedUsers: {
+        select: { id: true, name: true, email: true },
+      },
       parentTask: {
         select: { id: true, title: true },
       },
@@ -78,7 +81,38 @@ export async function getAllTasks(userId) {
   return tasks;
 }
 
-export async function createTask(userId, title, description, deadline, parentTaskId, assignedUserIds) {
+export async function getTaskById(taskId) {
+  const task = await prisma.task.findUnique({
+    where: { id: parseInt(taskId) },
+    include: {
+      creator: {
+        select: { id: true, name: true, email: true },
+      },
+      assignedUsers: {
+        select: { id: true, name: true, email: true },
+      },
+      assignedUsers: {
+        select: { id: true, name: true, email: true },
+      },
+      parentTask: {
+        select: { id: true, title: true },
+      },
+      subtasks: {
+        select: { id: true, title: true, status: true },
+      },
+    },
+  });
+  return task;
+}
+
+export async function createTask(
+  userId,
+  title,
+  description,
+  deadline,
+  parentTaskId,
+  assignedUserIds,
+) {
   // Prepare the data object
   const data = {
     title,
@@ -98,7 +132,10 @@ export async function createTask(userId, title, description, deadline, parentTas
       include: { assignedUsers: { where: { id: userId } } },
     });
 
-    if (!parentTask || (parentTask.creatorId !== userId && parentTask.assignedUsers.length === 0)) {
+    if (
+      !parentTask ||
+      (parentTask.creatorId !== userId && parentTask.assignedUsers.length === 0)
+    ) {
       throw new Error("No access to parent task");
     }
 
@@ -106,7 +143,11 @@ export async function createTask(userId, title, description, deadline, parentTas
   }
 
   // Add additional assigned users if provided
-  if (assignedUserIds && Array.isArray(assignedUserIds) && assignedUserIds.length > 0) {
+  if (
+    assignedUserIds &&
+    Array.isArray(assignedUserIds) &&
+    assignedUserIds.length > 0
+  ) {
     // Verify all users exist
     const users = await prisma.user.findMany({
       where: { id: { in: assignedUserIds } },
@@ -118,7 +159,7 @@ export async function createTask(userId, title, description, deadline, parentTas
 
     // Connect additional users (avoid duplicating the creator)
     const uniqueUserIds = [...new Set([userId, ...assignedUserIds])];
-    data.assignedUsers.connect = uniqueUserIds.map(id => ({ id }));
+    data.assignedUsers.connect = uniqueUserIds.map((id) => ({ id }));
   }
 
   const task = await prisma.task.create({
@@ -190,7 +231,10 @@ export async function assignUserToTask(currentUserId, taskId, userIdToAssign) {
     },
   });
 
-  if (!task || (task.creatorId !== currentUserId && task.assignedUsers.length === 0)) {
+  if (
+    !task ||
+    (task.creatorId !== currentUserId && task.assignedUsers.length === 0)
+  ) {
     throw new Error("No access to this task");
   }
 
@@ -222,6 +266,9 @@ export async function assignUserToTask(currentUserId, taskId, userIdToAssign) {
       assignedUsers: {
         connect: { id: userIdToAssign },
       },
+      appliedUsers: {
+        disconnect: { id: userIdToAssign },
+      },
     },
     include: {
       creator: {
@@ -242,7 +289,11 @@ export async function assignUserToTask(currentUserId, taskId, userIdToAssign) {
   return updatedTask;
 }
 
-export async function unassignUserFromTask(currentUserId, taskId, userIdToUnassign) {
+export async function unassignUserFromTask(
+  currentUserId,
+  taskId,
+  userIdToUnassign,
+) {
   // Check if current user has access to task
   const task = await prisma.task.findUnique({
     where: { id: taskId },
@@ -251,7 +302,10 @@ export async function unassignUserFromTask(currentUserId, taskId, userIdToUnassi
     },
   });
 
-  if (!task || (task.creatorId !== currentUserId && task.assignedUsers.length === 0)) {
+  if (
+    !task ||
+    (task.creatorId !== currentUserId && task.assignedUsers.length === 0)
+  ) {
     throw new Error("No access to this task");
   }
 
@@ -306,4 +360,16 @@ export async function unassignUserFromTask(currentUserId, taskId, userIdToUnassi
   });
 
   return updatedTask;
+}
+
+export async function applyUserToTask(currentUserId, taskId) {
+  const task = await prisma.user.update({
+    where: { id: currentUserId },
+    data: {
+      appliedTasks: {
+        connect: { id: taskId },
+      },
+    },
+  });
+  return task;
 }

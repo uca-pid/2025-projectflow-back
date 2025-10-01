@@ -5,11 +5,13 @@ import {
   getUserById as getUserByIdDb,
   deleteUser as deleteUserDb,
   getAllTasks,
+  getTaskById as getTaskByIdDb,
   createTask as createTaskDb,
   updateTask as updateTaskDb,
   deleteTask as deleteTaskDb,
   assignUserToTask as assignUserToTaskDb,
   unassignUserFromTask as unassignUserFromTaskDb,
+  applyUserToTask as applyUserToTaskDb,
 } from "./databaseService.js";
 
 export const getAllUsers = async (user) => {
@@ -79,8 +81,34 @@ export const getTasks = async (user) => {
   return tasks;
 };
 
-export const createTask = async (user, title, description, deadline, parentTaskId, assignedUserIds) => {
-  const task = await createTaskDb(user.id, title, description, deadline, parentTaskId, assignedUserIds);
+export const getTaskById = async (user, taskId) => {
+  const task = await getTaskByIdDb(taskId);
+
+  if (!task) {
+    throwError(404);
+  }
+  if (task.creatorId !== user.id || !task.assignedUsers.contains(user.id)) {
+    return { title: task.title };
+  }
+  return task;
+};
+
+export const createTask = async (
+  user,
+  title,
+  description,
+  deadline,
+  parentTaskId,
+  assignedUserIds,
+) => {
+  const task = await createTaskDb(
+    user.id,
+    title,
+    description,
+    deadline,
+    parentTaskId,
+    assignedUserIds,
+  );
   return task;
 };
 
@@ -110,10 +138,10 @@ export const deleteTask = async (user, taskId) => {
 // Get users for task assignment (no admin required)
 export const getUsersForAssignment = async (user) => {
   const users = await getAllUsersDb();
-  return users.map(u => ({
+  return users.map((u) => ({
     id: u.id,
     name: u.name,
-    email: u.email
+    email: u.email,
   }));
 };
 
@@ -126,5 +154,11 @@ export const assignUserToTask = async (currentUser, taskId, userId) => {
 // Unassign user from task
 export const unassignUserFromTask = async (currentUser, taskId, userId) => {
   const result = await unassignUserFromTaskDb(currentUser.id, taskId, userId);
+  return result;
+};
+
+// Apply user to task
+export const applyUserToTask = async (currentUser, taskId) => {
+  const result = await applyUserToTaskDb(currentUser.id, taskId);
   return result;
 };

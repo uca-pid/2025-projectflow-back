@@ -26,6 +26,7 @@ model User {
   // Task relationships
   createdTasks  Task[]    @relation("TaskCreator")
   assignedTasks Task[]    @relation("TaskAssignments")
+  appliedTasks  Task[]    @relation("TaskApplications")
 }
 
 enum Role {
@@ -93,6 +94,9 @@ model Task {
   
   // Assigned users (many-to-many)
   assignedUsers   User[]        @relation("TaskAssignments")
+
+  // Applied users (many-to-many)
+  appliedUsers    User[]        @relation("TaskApplications")
   
 
   parentTaskId    Int?
