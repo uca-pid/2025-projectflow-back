@@ -8,6 +8,8 @@ import {
   createTask as createTaskDb,
   updateTask as updateTaskDb,
   deleteTask as deleteTaskDb,
+  assignUserToTask as assignUserToTaskDb,
+  unassignUserFromTask as unassignUserFromTaskDb,
 } from "./databaseService.js";
 
 export const getAllUsers = async (user) => {
@@ -113,4 +115,16 @@ export const getUsersForAssignment = async (user) => {
     name: u.name,
     email: u.email
   }));
+};
+
+// Assign user to task
+export const assignUserToTask = async (currentUser, taskId, userId) => {
+  const result = await assignUserToTaskDb(currentUser.id, taskId, userId);
+  return result;
+};
+
+// Unassign user from task
+export const unassignUserFromTask = async (currentUser, taskId, userId) => {
+  const result = await unassignUserFromTaskDb(currentUser.id, taskId, userId);
+  return result;
 };

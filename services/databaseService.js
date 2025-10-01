@@ -181,3 +181,129 @@ export async function deleteTask(taskId, userId) {
   });
   return { message: "Task deleted" };
 }
+
+export async function assignUserToTask(currentUserId, taskId, userIdToAssign) {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: {
+      assignedUsers: { where: { id: currentUserId } },
+    },
+  });
+
+  if (!task || (task.creatorId !== currentUserId && task.assignedUsers.length === 0)) {
+    throw new Error("No access to this task");
+  }
+
+  // Verify the user to assign exists
+  const userToAssign = await prisma.user.findUnique({
+    where: { id: userIdToAssign },
+  });
+
+  if (!userToAssign) {
+    throw new Error("User to assign does not exist");
+  }
+
+  // Check if user is already assigned
+  const existingAssignment = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: {
+      assignedUsers: { where: { id: userIdToAssign } },
+    },
+  });
+
+  if (existingAssignment.assignedUsers.length > 0) {
+    throw new Error("User is already assigned to this task");
+  }
+
+  // Assign the user to the task
+  const updatedTask = await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      assignedUsers: {
+        connect: { id: userIdToAssign },
+      },
+    },
+    include: {
+      creator: {
+        select: { id: true, name: true, email: true },
+      },
+      assignedUsers: {
+        select: { id: true, name: true, email: true },
+      },
+      parentTask: {
+        select: { id: true, title: true },
+      },
+      subtasks: {
+        select: { id: true, title: true, status: true },
+      },
+    },
+  });
+
+  return updatedTask;
+}
+
+export async function unassignUserFromTask(currentUserId, taskId, userIdToUnassign) {
+  // Check if current user has access to task
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: {
+      assignedUsers: { where: { id: currentUserId } },
+    },
+  });
+
+  if (!task || (task.creatorId !== currentUserId && task.assignedUsers.length === 0)) {
+    throw new Error("No access to this task");
+  }
+
+  // Verify the user to unassign exists
+  const userToUnassign = await prisma.user.findUnique({
+    where: { id: userIdToUnassign },
+  });
+
+  if (!userToUnassign) {
+    throw new Error("User to unassign does not exist");
+  }
+
+  // Check if user is actually assigned to the task
+  const existingAssignment = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: {
+      assignedUsers: { where: { id: userIdToUnassign } },
+    },
+  });
+
+  if (existingAssignment.assignedUsers.length === 0) {
+    throw new Error("User is not assigned to this task");
+  }
+
+  // Prevent unassigning the creator
+  if (task.creatorId === userIdToUnassign) {
+    throw new Error("Cannot unassign the task creator");
+  }
+
+  // Unassign the user from the task
+  const updatedTask = await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      assignedUsers: {
+        disconnect: { id: userIdToUnassign },
+      },
+    },
+    include: {
+      creator: {
+        select: { id: true, name: true, email: true },
+      },
+      assignedUsers: {
+        select: { id: true, name: true, email: true },
+      },
+      parentTask: {
+        select: { id: true, title: true },
+      },
+      subtasks: {
+        select: { id: true, title: true, status: true },
+      },
+    },
+  });
+
+  return updatedTask;
+}

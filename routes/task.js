@@ -7,6 +7,8 @@ import {
   updateTask,
   deleteTask,
   getUsersForAssignment,
+  assignUserToTask,
+  unassignUserFromTask,
 } from "../services/requestHandler.js";
 
 // Middleware Function to protect routes
@@ -50,10 +52,10 @@ router.get("/users", authUser, async (req, res) => {
   }
 });
 
-// POST /task - Create a new task
+// POST /task/create - Create a new main task (not a subtask)
 router.post("/create", authUser, async (req, res) => {
   try {
-    const { title, description, deadline, parentTaskId, assignedUserIds } = req.body;
+    const { title, description, deadline, assignedUserIds } = req.body;
 
     if (!title) {
       return res
@@ -61,7 +63,8 @@ router.post("/create", authUser, async (req, res) => {
         .json({ success: false, message: "Title is required" });
     }
 
-    const task = await createTask(req.user, title, description, deadline, parentTaskId, assignedUserIds);
+    // No parentTaskId for main tasks
+    const task = await createTask(req.user, title, description, deadline, null, assignedUserIds);
     res.status(201).json({ success: true, data: task });
   } catch (error) {
     res
@@ -70,10 +73,11 @@ router.post("/create", authUser, async (req, res) => {
   }
 });
 
-// POST /task/createSubtask - Create a subtask (alternative endpoint)
-router.post("/createSubtask", authUser, async (req, res) => {
+// POST /task/:id/create - Create a subtask of task with :id
+router.post("/:id/create", authUser, async (req, res) => {
   try {
-    const { title, description, deadline, parentTaskId, assignedUserIds } = req.body;
+    const { id } = req.params;
+    const { title, description, deadline, assignedUserIds } = req.body;
 
     if (!title) {
       return res
@@ -81,14 +85,57 @@ router.post("/createSubtask", authUser, async (req, res) => {
         .json({ success: false, message: "Title is required" });
     }
 
-    if (!parentTaskId) {
+    const parentTaskId = parseInt(id);
+    if (isNaN(parentTaskId)) {
       return res
         .status(400)
-        .json({ success: false, message: "Parent task ID is required for subtasks" });
+        .json({ success: false, message: "Invalid parent task ID" });
     }
 
     const subtask = await createTask(req.user, title, description, deadline, parentTaskId, assignedUserIds);
     res.status(201).json({ success: true, data: subtask });
+  } catch (error) {
+    res
+      .status(error.status || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+
+router.post("/:id/assign/:userId", authUser, async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+    
+    const taskId = parseInt(id);
+    if (isNaN(taskId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid task ID" });
+    }
+
+    const result = await assignUserToTask(req.user, taskId, userId);
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    res
+      .status(error.status || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+// POST /task/:id/unassign/:userId - Unassign user from task
+router.post("/:id/unassign/:userId", authUser, async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+    
+    const taskId = parseInt(id);
+    if (isNaN(taskId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid task ID" });
+    }
+
+    const result = await unassignUserFromTask(req.user, taskId, userId);
+    res.status(200).json({ success: true, data: result });
   } catch (error) {
     res
       .status(error.status || 500)
