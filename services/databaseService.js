@@ -55,6 +55,30 @@ export async function deleteUser(id) {
   return deletedUser;
 }
 // Task functions
+
+async function getSubtasksRecursively(taskId) {
+  const subtasks = await prisma.task.findMany({
+    where: { parentTaskId: taskId },
+    include: {
+      creator: {
+        select: { id: true, name: true, email: true },
+      },
+      assignedUsers: {
+        select: { id: true, name: true, email: true },
+      },
+      parentTask: {
+        select: { id: true, title: true },
+      },
+    },
+  });
+
+  for (const subtask of subtasks) {
+    subtask.subtasks = await getSubtasksRecursively(subtask.id);
+  }
+
+  return subtasks;
+}
+
 export async function getAllTasks(userId) {
   const tasks = await prisma.task.findMany({
     where: {
@@ -73,17 +97,20 @@ export async function getAllTasks(userId) {
       parentTask: {
         select: { id: true, title: true },
       },
-      subtasks: {
-        select: { id: true, title: true, status: true },
-      },
     },
   });
+
+
+  for (const task of tasks) {
+    task.subtasks = await getSubtasksRecursively(task.id);
+  }
+
   return tasks;
 }
 
 export async function getTaskById(taskId) {
   const task = await prisma.task.findUnique({
-    where: { id: taskId }, // No parseInt, usando UUID
+    where: { id: taskId },
     include: {
       creator: {
         select: { id: true, name: true, email: true },
@@ -94,11 +121,13 @@ export async function getTaskById(taskId) {
       parentTask: {
         select: { id: true, title: true },
       },
-      subtasks: {
-        select: { id: true, title: true, status: true },
-      },
     },
   });
+
+  if (task) {
+    task.subtasks = await getSubtasksRecursively(task.id);
+  }
+
   return task;
 }
 
