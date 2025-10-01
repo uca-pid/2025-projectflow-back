@@ -46,12 +46,6 @@ router.post("/create", validateAuthorization, async (req, res) => {
   try {
     const { title, description, deadline, assignedUserIds } = req.body;
 
-    if (!title) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Title is required" });
-    }
-
     // No parentTaskId for main tasks
     const task = await createTask(
       req.user,
@@ -75,25 +69,12 @@ router.post("/:id/create", validateAuthorization, async (req, res) => {
     const { id } = req.params;
     const { title, description, deadline, assignedUserIds } = req.body;
 
-    if (!title) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Title is required" });
-    }
-
-    const parentTaskId = parseInt(id);
-    if (isNaN(parentTaskId)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid parent task ID" });
-    }
-
     const subtask = await createTask(
       req.user,
       title,
       description,
       deadline,
-      parentTaskId,
+      id, // parentTaskId es ahora string
       assignedUserIds,
     );
     res.status(201).json({ success: true, data: subtask });
@@ -108,14 +89,7 @@ router.post("/:id/assign/:userId", validateAuthorization, async (req, res) => {
   try {
     const { id, userId } = req.params;
 
-    const taskId = parseInt(id);
-    if (isNaN(taskId)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid task ID" });
-    }
-
-    const result = await assignUserToTask(req.user, taskId, userId);
+    const result = await assignUserToTask(req.user, id, userId);
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     res
@@ -132,14 +106,7 @@ router.post(
     try {
       const { id, userId } = req.params;
 
-      const taskId = parseInt(id);
-      if (isNaN(taskId)) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Invalid task ID" });
-      }
-
-      const result = await unassignUserFromTask(req.user, taskId, userId);
+      const result = await unassignUserFromTask(req.user, id, userId);
       res.status(200).json({ success: true, data: result });
     } catch (error) {
       res
@@ -153,14 +120,8 @@ router.post(
 router.post("/:id/apply", validateAuthorization, async (req, res) => {
   try {
     const { id } = req.params;
-    const taskId = parseInt(id);
-    if (isNaN(taskId)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid task ID" });
-    }
 
-    const result = await applyUserToTask(req.user, taskId);
+    const result = await applyUserToTask(req.user, id);
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     console.log(error);
