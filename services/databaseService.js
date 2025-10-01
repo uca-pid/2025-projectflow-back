@@ -67,25 +67,74 @@ export async function getAllTasks(userId) {
       assignedUsers: {
         select: { id: true, name: true, email: true },
       },
+      parentTask: {
+        select: { id: true, title: true },
+      },
+      subtasks: {
+        select: { id: true, title: true, status: true },
+      },
     },
   });
   return tasks;
 }
 
-export async function createTask(userId, title, description, deadline) {
-  const task = await prisma.task.create({
-    data: {
-      title,
-      description,
-      deadline: deadline ? new Date(deadline) : null,
-      creatorId: userId,
-      assignedUsers: {
-        connect: { id: userId },
-      },
+export async function createTask(userId, title, description, deadline, parentTaskId, assignedUserIds) {
+  // Prepare the data object
+  const data = {
+    title,
+    description,
+    deadline: deadline ? new Date(deadline) : null,
+    creatorId: userId,
+    assignedUsers: {
+      connect: [{ id: userId }], // Always assign the creator
     },
+  };
+
+  // Add parent task if it's a subtask
+  if (parentTaskId) {
+    // Verify parent task exists and user has access
+    const parentTask = await prisma.task.findUnique({
+      where: { id: parseInt(parentTaskId) },
+      include: { assignedUsers: { where: { id: userId } } },
+    });
+
+    if (!parentTask || (parentTask.creatorId !== userId && parentTask.assignedUsers.length === 0)) {
+      throw new Error("No access to parent task");
+    }
+
+    data.parentTaskId = parseInt(parentTaskId);
+  }
+
+  // Add additional assigned users if provided
+  if (assignedUserIds && Array.isArray(assignedUserIds) && assignedUserIds.length > 0) {
+    // Verify all users exist
+    const users = await prisma.user.findMany({
+      where: { id: { in: assignedUserIds } },
+    });
+
+    if (users.length !== assignedUserIds.length) {
+      throw new Error("Some assigned users do not exist");
+    }
+
+    // Connect additional users (avoid duplicating the creator)
+    const uniqueUserIds = [...new Set([userId, ...assignedUserIds])];
+    data.assignedUsers.connect = uniqueUserIds.map(id => ({ id }));
+  }
+
+  const task = await prisma.task.create({
+    data,
     include: {
       creator: {
         select: { id: true, name: true, email: true },
+      },
+      assignedUsers: {
+        select: { id: true, name: true, email: true },
+      },
+      parentTask: {
+        select: { id: true, title: true },
+      },
+      subtasks: {
+        select: { id: true, title: true, status: true },
       },
     },
   });

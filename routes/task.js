@@ -6,6 +6,7 @@ import {
   createTask,
   updateTask,
   deleteTask,
+  getUsersForAssignment,
 } from "../services/requestHandler.js";
 
 // Middleware Function to protect routes
@@ -36,10 +37,23 @@ router.get("/getTasks", authUser, async (req, res) => {
   }
 });
 
+// GET /task/users - Get all users for task assignment
+router.get("/users", authUser, async (req, res) => {
+  try {
+    const users = await getUsersForAssignment(req.user);
+    res.status(200).json({ success: true, data: users });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.status || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
 // POST /task - Create a new task
 router.post("/create", authUser, async (req, res) => {
   try {
-    const { title, description, deadline } = req.body;
+    const { title, description, deadline, parentTaskId, assignedUserIds } = req.body;
 
     if (!title) {
       return res
@@ -47,8 +61,34 @@ router.post("/create", authUser, async (req, res) => {
         .json({ success: false, message: "Title is required" });
     }
 
-    const task = await createTask(req.user, title, description, deadline);
+    const task = await createTask(req.user, title, description, deadline, parentTaskId, assignedUserIds);
     res.status(201).json({ success: true, data: task });
+  } catch (error) {
+    res
+      .status(error.status || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+// POST /task/createSubtask - Create a subtask (alternative endpoint)
+router.post("/createSubtask", authUser, async (req, res) => {
+  try {
+    const { title, description, deadline, parentTaskId, assignedUserIds } = req.body;
+
+    if (!title) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Title is required" });
+    }
+
+    if (!parentTaskId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Parent task ID is required for subtasks" });
+    }
+
+    const subtask = await createTask(req.user, title, description, deadline, parentTaskId, assignedUserIds);
+    res.status(201).json({ success: true, data: subtask });
   } catch (error) {
     res
       .status(error.status || 500)

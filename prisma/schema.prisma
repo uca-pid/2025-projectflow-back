@@ -93,6 +93,11 @@ model Task {
   
   // Assigned users (many-to-many)
   assignedUsers   User[]        @relation("TaskAssignments")
+  
+
+  parentTaskId    Int?
+  parentTask      Task?         @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks        Task[]        @relation("TaskHierarchy")
 
   @@map("task")
 }

@@ -77,8 +77,8 @@ export const getTasks = async (user) => {
   return tasks;
 };
 
-export const createTask = async (user, title, description, deadline) => {
-  const task = await createTaskDb(user.id, title, description, deadline);
+export const createTask = async (user, title, description, deadline, parentTaskId, assignedUserIds) => {
+  const task = await createTaskDb(user.id, title, description, deadline, parentTaskId, assignedUserIds);
   return task;
 };
 
@@ -103,4 +103,14 @@ export const updateTask = async (
 export const deleteTask = async (user, taskId) => {
   const result = await deleteTaskDb(taskId, user.id);
   return result;
+};
+
+// Get users for task assignment (no admin required)
+export const getUsersForAssignment = async (user) => {
+  const users = await getAllUsersDb();
+  return users.map(u => ({
+    id: u.id,
+    name: u.name,
+    email: u.email
+  }));
 };
