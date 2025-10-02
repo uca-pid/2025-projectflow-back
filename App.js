@@ -21,7 +21,7 @@ app.use(logRequest);
 //Cross origin requests
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: "https://projectflow.semantic.com.ar",
     credentials: true,
   }),
 );
