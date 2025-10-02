@@ -80,7 +80,7 @@ model Verification {
 }
 
 model Task {
-  id              Int           @id @default(autoincrement())
+  id              String        @id @default(cuid())
   title           String
   description     String?
   status          TaskStatus    @default(TODO)
@@ -99,9 +99,9 @@ model Task {
   appliedUsers    User[]        @relation("TaskApplications")
   
 
-  parentTaskId    Int?
+  parentTaskId    String?
   parentTask      Task?         @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: Cascade)
-  subtasks        Task[]        @relation("TaskHierarchy")
+  subTasks        Task[]        @relation("TaskHierarchy")
 
   @@map("task")
 }

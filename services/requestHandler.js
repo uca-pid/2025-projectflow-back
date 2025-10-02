@@ -12,6 +12,7 @@ import {
   assignUserToTask as assignUserToTaskDb,
   unassignUserFromTask as unassignUserFromTaskDb,
   applyUserToTask as applyUserToTaskDb,
+  rejectUserFromTask as rejectUserFromTaskDb,
 } from "./databaseService.js";
 
 export const getAllUsers = async (user) => {
@@ -82,7 +83,7 @@ export const getTasks = async (user) => {
 };
 
 export const getTaskById = async (user, taskId) => {
-  if (!taskId || taskId.trim() === '') {
+  if (!taskId || taskId.trim() === "") {
     throwError(400, "Task ID is required");
   }
 
@@ -91,19 +92,20 @@ export const getTaskById = async (user, taskId) => {
   if (!task) {
     throwError(404, "Task not found");
   }
-  
+
   // Check if user has access to the task
-  const hasAccess = task.creatorId === user.id || 
-                   task.assignedUsers.some(u => u.id === user.id);
-  
+  const hasAccess =
+    task.creatorId === user.id ||
+    task.assignedUsers.some((u) => u.id === user.id);
+
   if (!hasAccess) {
     // Return limited info if no access
-    return { 
+    return {
       id: task.id,
-      title: task.title 
+      title: task.title,
     };
   }
-  
+
   return task;
 };
 
@@ -112,24 +114,21 @@ export const createTask = async (
   title,
   description,
   deadline,
-  parentTaskId,
-  assignedUserIds,
+  parentTaskId = null,
 ) => {
-  // Validation in requestHandler as requested
-  if (!title || title.trim() === '') {
+  if (!title || title.trim() === "") {
     throwError(400, "Title is required");
   }
 
-  // If parentTaskId is provided, verify it exists and user has access
   if (parentTaskId) {
     const parentTask = await getTaskByIdDb(parentTaskId);
     if (!parentTask) {
       throwError(404, "Parent task not found");
     }
-    
-    // Check if user has access to parent task
-    const hasAccess = parentTask.creatorId === user.id || 
-                     parentTask.assignedUsers.some(u => u.id === user.id);
+
+    const hasAccess =
+      parentTask.creatorId === user.id ||
+      parentTask.assignedUsers.some((u) => u.id === user.id);
     if (!hasAccess) {
       throwError(403, "No access to parent task");
     }
@@ -141,7 +140,6 @@ export const createTask = async (
     description,
     deadline,
     parentTaskId,
-    assignedUserIds,
   );
   return task;
 };
@@ -160,31 +158,46 @@ export const updateTask = async (
   if (deadline) updateData.deadline = new Date(deadline);
   if (status) updateData.status = status;
 
-  const task = await updateTaskDb(taskId, user.id, updateData);
+  const foundTask = await getTaskByIdDb(taskId);
+  if (!foundTask) {
+    throwError(404, "Task not found");
+  }
+
+  const hasAccess =
+    foundTask.creatorId === user.id ||
+    foundTask.assignedUsers.some((u) => u.id === user.id);
+  if (!hasAccess) {
+    throwError(403, "No access to this task");
+  }
+
+  const task = await updateTaskDb(taskId, updateData);
   return task;
 };
 
 export const deleteTask = async (user, taskId) => {
-  const result = await deleteTaskDb(taskId, user.id);
-  return result;
-};
+  const task = await getTaskByIdDb(taskId);
+  if (!task) {
+    throwError(404, "Task not found");
+  }
 
-// Get users for task assignment (no admin required)
-export const getUsersForAssignment = async (user) => {
-  const users = await getAllUsersDb();
-  return users.map((u) => ({
-    id: u.id,
-    name: u.name,
-    email: u.email,
-  }));
+  const hasAccess =
+    task.creatorId === user.id ||
+    task.assignedUsers.some((u) => u.id === user.id);
+
+  if (!hasAccess) {
+    throwError(403, "No access to this task");
+  }
+
+  const result = await deleteTaskDb(taskId);
+  return result;
 };
 
 // Assign user to task
 export const assignUserToTask = async (currentUser, taskId, userId) => {
-  if (!taskId || taskId.trim() === '') {
+  if (!taskId || taskId.trim() === "") {
     throwError(400, "Task ID is required");
   }
-  if (!userId || userId.trim() === '') {
+  if (!userId || userId.trim() === "") {
     throwError(400, "User ID is required");
   }
 
@@ -201,28 +214,29 @@ export const assignUserToTask = async (currentUser, taskId, userId) => {
   }
 
   // Check if current user has access to task
-  const hasAccess = task.creatorId === currentUser.id || 
-                   task.assignedUsers.some(u => u.id === currentUser.id);
+  const hasAccess =
+    task.creatorId === currentUser.id ||
+    task.assignedUsers.some((u) => u.id === currentUser.id);
   if (!hasAccess) {
     throwError(403, "No access to this task");
   }
 
   // Check if user is already assigned
-  const isAlreadyAssigned = task.assignedUsers.some(u => u.id === userId);
+  const isAlreadyAssigned = task.assignedUsers.some((u) => u.id === userId);
   if (isAlreadyAssigned) {
     throwError(409, "User is already assigned to this task");
   }
 
-  const result = await assignUserToTaskDb(currentUser.id, taskId, userId);
+  const result = await assignUserToTaskDb(taskId, userId);
   return result;
 };
 
 // Unassign user from task
 export const unassignUserFromTask = async (currentUser, taskId, userId) => {
-  if (!taskId || taskId.trim() === '') {
+  if (!taskId || taskId.trim() === "") {
     throwError(400, "Task ID is required");
   }
-  if (!userId || userId.trim() === '') {
+  if (!userId || userId.trim() === "") {
     throwError(400, "User ID is required");
   }
 
@@ -233,14 +247,15 @@ export const unassignUserFromTask = async (currentUser, taskId, userId) => {
   }
 
   // Check if current user has access to task
-  const hasAccess = task.creatorId === currentUser.id || 
-                   task.assignedUsers.some(u => u.id === currentUser.id);
+  const hasAccess =
+    task.creatorId === currentUser.id ||
+    task.assignedUsers.some((u) => u.id === currentUser.id);
   if (!hasAccess) {
     throwError(403, "No access to this task");
   }
 
   // Check if user is actually assigned
-  const isAssigned = task.assignedUsers.some(u => u.id === userId);
+  const isAssigned = task.assignedUsers.some((u) => u.id === userId);
   if (!isAssigned) {
     throwError(409, "User is not assigned to this task");
   }
@@ -250,13 +265,13 @@ export const unassignUserFromTask = async (currentUser, taskId, userId) => {
     throwError(403, "Cannot unassign the task creator");
   }
 
-  const result = await unassignUserFromTaskDb(currentUser.id, taskId, userId);
+  const result = await unassignUserFromTaskDb(taskId, userId);
   return result;
 };
 
 // Apply user to task
 export const applyUserToTask = async (currentUser, taskId) => {
-  if (!taskId || taskId.trim() === '') {
+  if (!taskId || taskId.trim() === "") {
     throwError(400, "Task ID is required");
   }
 
@@ -267,11 +282,33 @@ export const applyUserToTask = async (currentUser, taskId) => {
   }
 
   // Check if user is already assigned
-  const isAlreadyAssigned = task.assignedUsers.some(u => u.id === currentUser.id);
+  const isAlreadyAssigned = task.assignedUsers.some(
+    (u) => u.id === currentUser.id,
+  );
   if (isAlreadyAssigned) {
     throwError(409, "You are already assigned to this task");
   }
 
   const result = await applyUserToTaskDb(currentUser.id, taskId);
+  return result;
+};
+
+export const rejectUserFromTask = async (currentUser, taskId) => {
+  if (!taskId || taskId.trim() === "") {
+    throwError(400, "Task ID is required");
+  }
+
+  // Verify task exists
+  const task = await getTaskByIdDb(taskId);
+  if (!task) {
+    throwError(404, "Task not found");
+  }
+
+  const isOwner = task.creatorId === currentUser.id;
+  if (!isOwner) {
+    throwError(403, "You are not the owner of this task");
+  }
+
+  const result = await rejectUserFromTaskDb(currentUser.id, taskId);
   return result;
 };

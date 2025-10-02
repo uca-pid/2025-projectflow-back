@@ -1,5 +1,4 @@
 import { PrismaClient } from "../prisma/generated/prisma/index.js";
-import { auth } from "../auth.js";
 
 export const prisma = new PrismaClient();
 
@@ -28,7 +27,6 @@ export async function getUserById(id) {
 }
 
 export async function updateUser(userToUpdate) {
-  // Update user
   const updatedUser = await prisma.user.update({
     where: {
       id: userToUpdate.id,
@@ -36,7 +34,6 @@ export async function updateUser(userToUpdate) {
     data: userToUpdate,
   });
 
-  // Delete all user sessions
   await prisma.session.deleteMany({
     where: {
       userId: userToUpdate.id,
@@ -54,10 +51,9 @@ export async function deleteUser(id) {
   });
   return deletedUser;
 }
-// Task functions
 
-async function getSubtasksRecursively(taskId) {
-  const subtasks = await prisma.task.findMany({
+async function getSubTasksRecursively(taskId) {
+  const subTasks = await prisma.task.findMany({
     where: { parentTaskId: taskId },
     include: {
       creator: {
@@ -66,17 +62,20 @@ async function getSubtasksRecursively(taskId) {
       assignedUsers: {
         select: { id: true, name: true, email: true },
       },
+      appliedUsers: {
+        select: { id: true, name: true, email: true },
+      },
       parentTask: {
         select: { id: true, title: true },
       },
     },
   });
 
-  for (const subtask of subtasks) {
-    subtask.subtasks = await getSubtasksRecursively(subtask.id);
+  for (const subTask of subTasks) {
+    subTask.subTasks = await getSubTasksRecursively(subTask.id);
   }
 
-  return subtasks;
+  return subTasks;
 }
 
 export async function getAllTasks(userId) {
@@ -100,9 +99,8 @@ export async function getAllTasks(userId) {
     },
   });
 
-
   for (const task of tasks) {
-    task.subtasks = await getSubtasksRecursively(task.id);
+    task.subTasks = await getSubTasksRecursively(task.id);
   }
 
   return tasks;
@@ -125,7 +123,7 @@ export async function getTaskById(taskId) {
   });
 
   if (task) {
-    task.subtasks = await getSubtasksRecursively(task.id);
+    task.subTasks = await getSubTasksRecursively(task.id);
   }
 
   return task;
@@ -137,30 +135,17 @@ export async function createTask(
   description,
   deadline,
   parentTaskId,
-  assignedUserIds,
 ) {
-  // Prepare the data object
   const data = {
     title,
     description,
     deadline: deadline ? new Date(deadline) : null,
     creatorId: userId,
     assignedUsers: {
-      connect: [{ id: userId }], // Always assign the creator
+      connect: [{ id: userId }],
     },
+    parentTaskId: parentTaskId || null,
   };
-
-  // Add parent task if it's a subtask
-  if (parentTaskId) {
-    data.parentTaskId = parentTaskId; // No parseInt, using UUID
-  }
-
-  // Add additional assigned users if provided
-  if (assignedUserIds && Array.isArray(assignedUserIds) && assignedUserIds.length > 0) {
-    // Connect additional users (avoid duplicating the creator)
-    const uniqueUserIds = [...new Set([userId, ...assignedUserIds])];
-    data.assignedUsers.connect = uniqueUserIds.map((id) => ({ id }));
-  }
 
   const task = await prisma.task.create({
     data,
@@ -168,11 +153,10 @@ export async function createTask(
       creator: {
         select: { id: true, name: true, email: true },
       },
-      // DO NOT include assignedUsers as requested
       parentTask: {
         select: { id: true, title: true },
       },
-      subtasks: {
+      subTasks: {
         select: { id: true, title: true, status: true },
       },
     },
@@ -180,9 +164,9 @@ export async function createTask(
   return task;
 }
 
-export async function updateTask(taskId, userId, data) {
+export async function updateTask(taskId, data) {
   const updatedTask = await prisma.task.update({
-    where: { id: taskId }, // No parseInt, using UUID
+    where: { id: taskId },
     data,
     include: {
       creator: {
@@ -193,34 +177,22 @@ export async function updateTask(taskId, userId, data) {
   return updatedTask;
 }
 
-export async function deleteTask(taskId, userId) {
+export async function deleteTask(taskId) {
   await prisma.task.delete({
-    where: { id: taskId }, // No parseInt, using UUID
+    where: { id: taskId },
   });
   return { message: "Task deleted" };
 }
 
-export async function assignUserToTask(currentUserId, taskId, userIdToAssign) {
-  // Simple DB operation, validations are in requestHandler
+export async function assignUserToTask(taskId, userIdToAssign) {
   const updatedTask = await prisma.task.update({
     where: { id: taskId },
     data: {
       assignedUsers: {
         connect: { id: userIdToAssign },
       },
-    },
-    include: {
-      creator: {
-        select: { id: true, name: true, email: true },
-      },
-      assignedUsers: {
-        select: { id: true, name: true, email: true },
-      },
-      parentTask: {
-        select: { id: true, title: true },
-      },
-      subtasks: {
-        select: { id: true, title: true, status: true },
+      appliedUsers: {
+        disconnect: { id: userIdToAssign },
       },
     },
   });
@@ -228,31 +200,12 @@ export async function assignUserToTask(currentUserId, taskId, userIdToAssign) {
   return updatedTask;
 }
 
-export async function unassignUserFromTask(
-  currentUserId,
-  taskId,
-  userIdToUnassign,
-) {
-  // Simple DB operation, validations are in requestHandler
+export async function unassignUserFromTask(taskId, userIdToUnassign) {
   const updatedTask = await prisma.task.update({
     where: { id: taskId },
     data: {
       assignedUsers: {
         disconnect: { id: userIdToUnassign },
-      },
-    },
-    include: {
-      creator: {
-        select: { id: true, name: true, email: true },
-      },
-      assignedUsers: {
-        select: { id: true, name: true, email: true },
-      },
-      parentTask: {
-        select: { id: true, title: true },
-      },
-      subtasks: {
-        select: { id: true, title: true, status: true },
       },
     },
   });
@@ -261,20 +214,23 @@ export async function unassignUserFromTask(
 }
 
 export async function applyUserToTask(currentUserId, taskId) {
-  // Simple DB operation, validations are in requestHandler
   const result = await prisma.task.update({
     where: { id: taskId },
     data: {
-      assignedUsers: {
+      appliedUsers: {
         connect: { id: currentUserId },
       },
     },
-    include: {
-      creator: {
-        select: { id: true, name: true, email: true },
-      },
-      assignedUsers: {
-        select: { id: true, name: true, email: true },
+  });
+  return result;
+}
+
+export async function rejectUserFromTask(currentUserId, taskId) {
+  const result = await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      appliedUsers: {
+        disconnect: { id: currentUserId },
       },
     },
   });

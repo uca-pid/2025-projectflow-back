@@ -5,11 +5,11 @@ import {
   createTask,
   updateTask,
   deleteTask,
-  getUsersForAssignment,
   assignUserToTask,
   unassignUserFromTask,
   getTaskById,
   applyUserToTask,
+  rejectUserFromTask,
 } from "../services/requestHandler.js";
 
 const router = express.Router();
@@ -28,11 +28,14 @@ router.get("/getTasks", validateAuthorization, async (req, res) => {
   }
 });
 
-// GET /task/users - Get all users for task assignment
-router.get("/users", validateAuthorization, async (req, res) => {
+// POST /task/create - Create a new main task (not a subTask)
+router.post("/create", validateAuthorization, async (req, res) => {
   try {
-    const users = await getUsersForAssignment(req.user);
-    res.status(200).json({ success: true, data: users });
+    const { title, description, deadline } = req.body;
+
+    // No parentTaskId for main tasks
+    const task = await createTask(req.user, title, description, deadline, null);
+    res.status(201).json({ success: true, data: task });
   } catch (error) {
     console.log(error);
     res
@@ -41,43 +44,20 @@ router.get("/users", validateAuthorization, async (req, res) => {
   }
 });
 
-// POST /task/create - Create a new main task (not a subtask)
-router.post("/create", validateAuthorization, async (req, res) => {
-  try {
-    const { title, description, deadline, assignedUserIds } = req.body;
-
-    // No parentTaskId for main tasks
-    const task = await createTask(
-      req.user,
-      title,
-      description,
-      deadline,
-      null,
-      assignedUserIds,
-    );
-    res.status(201).json({ success: true, data: task });
-  } catch (error) {
-    res
-      .status(error.status || 500)
-      .json({ success: false, message: error.message });
-  }
-});
-
-// POST /task/:id/create - Create a subtask of task with :id
+// POST /task/:id/create - Create a subTask of task with :id
 router.post("/:id/create", validateAuthorization, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, deadline, assignedUserIds } = req.body;
+    const { title, description, deadline } = req.body;
 
-    const subtask = await createTask(
+    const subTask = await createTask(
       req.user,
       title,
       description,
       deadline,
-      id, // parentTaskId es ahora string
-      assignedUserIds,
+      id,
     );
-    res.status(201).json({ success: true, data: subtask });
+    res.status(201).json({ success: true, data: subTask });
   } catch (error) {
     res
       .status(error.status || 500)
@@ -130,6 +110,25 @@ router.post("/:id/apply", validateAuthorization, async (req, res) => {
       .json({ success: false, message: error.message });
   }
 });
+
+// POST /task/:taskId/reject/:userId - Apply to task
+router.post(
+  "/:taskId/reject/:userId",
+  validateAuthorization,
+  async (req, res) => {
+    try {
+      const { taskId, userId } = req.params;
+
+      const result = await rejectUserFromTask(req.user, taskId, userId);
+      res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      console.log(error);
+      res
+        .status(error.status || 500)
+        .json({ success: false, message: error.message });
+    }
+  },
+);
 
 // GET/task/:id - Get task by id
 router.get("/:id", validateAuthorization, async (req, res) => {

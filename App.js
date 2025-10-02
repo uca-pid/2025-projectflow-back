@@ -1,4 +1,5 @@
 import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
+import { logRequest } from "./utils/logger.js";
 import bodyParser from "body-parser";
 import { auth } from "./auth.js";
 import express from "express";
@@ -13,6 +14,9 @@ const app = express();
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+
+// Log requests (optional)
+app.use(logRequest);
 
 //Cross origin requests
 app.use(
@@ -47,7 +51,7 @@ app.use("/task", taskRoutes);
 app.use("/user", userRoutes);
 
 //Test
-app.get("/", (req, res) => {
+app.get("/", (_, res) => {
   res.send("Hello World!").status(200);
 });
 
