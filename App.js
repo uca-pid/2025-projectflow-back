@@ -21,7 +21,7 @@ app.use(logRequest);
 //Cross origin requests
 app.use(
   cors({
-    origin: "https://projectflow.semantic.com.ar",
+    origin: process.env.FRONTEND_URL,
     credentials: true,
   }),
 );
