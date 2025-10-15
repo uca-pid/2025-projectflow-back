@@ -7,18 +7,7 @@ import {
   deleteUser,
 } from "../services/requestHandler.js";
 import { handleError } from "../services/errorHandler.js";
-
-// Middleware Function to protect routes, later move it elsewhere
-const authUser = async (req, res, next) => {
-  const session = await auth.api.getSession({
-    headers: fromNodeHeaders(req.headers),
-  });
-  if (!session || !session.user) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-  req.userSession = session;
-  next();
-};
+import { validateAuthorization } from "../services/validationService.js";
 
 const router = express.Router();
 router.use(express.json());
@@ -35,7 +24,7 @@ router.get("/", async (req, res) => {
 });
 
 // Get all users
-router.get("/getAll", authUser, async (req, res) => {
+router.get("/getAll", validateAuthorization, async (req, res) => {
   try {
     const users = await getAllUsers(req.userSession.user);
     res.status(200).json({ data: users });
@@ -45,7 +34,7 @@ router.get("/getAll", authUser, async (req, res) => {
   }
 });
 
-router.put("/update/:userId", authUser, async (req, res) => {
+router.put("/update/:userId", validateAuthorization, async (req, res) => {
   try {
     const userToUpdateId = req.params.userId;
     const { userToUpdateData } = req.body;
@@ -64,7 +53,7 @@ router.put("/update/:userId", authUser, async (req, res) => {
   }
 });
 
-router.delete("/:userId", authUser, async (req, res) => {
+router.delete("/:userId", validateAuthorization, async (req, res) => {
   try {
     const userToDeleteId = req.params.userId;
     const deletedUser = await deleteUser(req.userSession.user, userToDeleteId);

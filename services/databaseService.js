@@ -1,5 +1,4 @@
 import { PrismaClient } from "../prisma/generated/prisma/index.js";
-import { auth } from "../auth.js";
 
 export const prisma = new PrismaClient();
 
@@ -28,7 +27,6 @@ export async function getUserById(id) {
 }
 
 export async function updateUser(userToUpdate) {
-  // Update user
   const updatedUser = await prisma.user.update({
     where: {
       id: userToUpdate.id,
@@ -36,7 +34,6 @@ export async function updateUser(userToUpdate) {
     data: userToUpdate,
   });
 
-  // Delete all user sessions
   await prisma.session.deleteMany({
     where: {
       userId: userToUpdate.id,
@@ -54,7 +51,33 @@ export async function deleteUser(id) {
   });
   return deletedUser;
 }
-// Task functions
+
+async function getSubTasksRecursively(taskId) {
+  const subTasks = await prisma.task.findMany({
+    where: { parentTaskId: taskId },
+    include: {
+      creator: {
+        select: { id: true, name: true, email: true },
+      },
+      assignedUsers: {
+        select: { id: true, name: true, email: true },
+      },
+      appliedUsers: {
+        select: { id: true, name: true, email: true },
+      },
+      parentTask: {
+        select: { id: true, title: true },
+      },
+    },
+  });
+
+  for (const subTask of subTasks) {
+    subTask.subTasks = await getSubTasksRecursively(subTask.id);
+  }
+
+  return subTasks;
+}
+
 export async function getAllTasks(userId) {
   const tasks = await prisma.task.findMany({
     where: {
@@ -67,46 +90,83 @@ export async function getAllTasks(userId) {
       assignedUsers: {
         select: { id: true, name: true, email: true },
       },
+      appliedUsers: {
+        select: { id: true, name: true, email: true },
+      },
+      parentTask: {
+        select: { id: true, title: true },
+      },
     },
   });
+
+  for (const task of tasks) {
+    task.subTasks = await getSubTasksRecursively(task.id);
+  }
+
   return tasks;
 }
 
-export async function createTask(userId, title, description, deadline) {
-  const task = await prisma.task.create({
-    data: {
-      title,
-      description,
-      deadline: deadline ? new Date(deadline) : null,
-      creatorId: userId,
-      assignedUsers: {
-        connect: { id: userId },
-      },
-    },
+export async function getTaskById(taskId) {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
     include: {
       creator: {
         select: { id: true, name: true, email: true },
+      },
+      assignedUsers: {
+        select: { id: true, name: true, email: true },
+      },
+      parentTask: {
+        select: { id: true, title: true },
+      },
+    },
+  });
+
+  if (task) {
+    task.subTasks = await getSubTasksRecursively(task.id);
+  }
+
+  return task;
+}
+
+export async function createTask(
+  userId,
+  title,
+  description,
+  deadline,
+  parentTaskId,
+) {
+  const data = {
+    title,
+    description,
+    deadline: deadline ? new Date(deadline) : null,
+    creatorId: userId,
+    assignedUsers: {
+      connect: [{ id: userId }],
+    },
+    parentTaskId: parentTaskId || null,
+  };
+
+  const task = await prisma.task.create({
+    data,
+    include: {
+      creator: {
+        select: { id: true, name: true, email: true },
+      },
+      parentTask: {
+        select: { id: true, title: true },
+      },
+      subTasks: {
+        select: { id: true, title: true, status: true },
       },
     },
   });
   return task;
 }
 
-export async function updateTask(taskId, userId, data) {
-  // Check if user has access to task
-  const task = await prisma.task.findUnique({
-    where: { id: parseInt(taskId) },
-    include: {
-      assignedUsers: { where: { id: userId } },
-    },
-  });
-
-  if (!task || (task.creatorId !== userId && task.assignedUsers.length === 0)) {
-    throw new Error("No access to this task");
-  }
-
+export async function updateTask(taskId, data) {
   const updatedTask = await prisma.task.update({
-    where: { id: parseInt(taskId) },
+    where: { id: taskId },
     data,
     include: {
       creator: {
@@ -117,18 +177,62 @@ export async function updateTask(taskId, userId, data) {
   return updatedTask;
 }
 
-export async function deleteTask(taskId, userId) {
-  // Check if user is creator
-  const task = await prisma.task.findUnique({
-    where: { id: parseInt(taskId) },
-  });
-
-  if (!task || task.creatorId !== userId) {
-    throw new Error("Only creator can delete task");
-  }
-
+export async function deleteTask(taskId) {
   await prisma.task.delete({
-    where: { id: parseInt(taskId) },
+    where: { id: taskId },
   });
   return { message: "Task deleted" };
+}
+
+export async function assignUserToTask(taskId, userIdToAssign) {
+  const updatedTask = await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      assignedUsers: {
+        connect: { id: userIdToAssign },
+      },
+      appliedUsers: {
+        disconnect: { id: userIdToAssign },
+      },
+    },
+  });
+
+  return updatedTask;
+}
+
+export async function unassignUserFromTask(taskId, userIdToUnassign) {
+  const updatedTask = await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      assignedUsers: {
+        disconnect: { id: userIdToUnassign },
+      },
+    },
+  });
+
+  return updatedTask;
+}
+
+export async function applyUserToTask(currentUserId, taskId) {
+  const result = await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      appliedUsers: {
+        connect: { id: currentUserId },
+      },
+    },
+  });
+  return result;
+}
+
+export async function rejectUserFromTask(currentUserId, taskId) {
+  const result = await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      appliedUsers: {
+        disconnect: { id: currentUserId },
+      },
+    },
+  });
+  return result;
 }

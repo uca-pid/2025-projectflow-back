@@ -26,6 +26,7 @@ model User {
   // Task relationships
   createdTasks  Task[]    @relation("TaskCreator")
   assignedTasks Task[]    @relation("TaskAssignments")
+  appliedTasks  Task[]    @relation("TaskApplications")
 }
 
 enum Role {
@@ -79,7 +80,7 @@ model Verification {
 }
 
 model Task {
-  id              Int           @id @default(autoincrement())
+  id              String        @id @default(cuid())
   title           String
   description     String?
   status          TaskStatus    @default(TODO)
@@ -93,6 +94,14 @@ model Task {
   
   // Assigned users (many-to-many)
   assignedUsers   User[]        @relation("TaskAssignments")
+
+  // Applied users (many-to-many)
+  appliedUsers    User[]        @relation("TaskApplications")
+  
+
+  parentTaskId    String?
+  parentTask      Task?         @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subTasks        Task[]        @relation("TaskHierarchy")
 
   @@map("task")
 }
