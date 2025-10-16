@@ -83,6 +83,7 @@ model Task {
   id              String        @id @default(cuid())
   title           String
   description     String?
+  isPublic          Boolean       @default(false)
   status          TaskStatus    @default(TODO)
   deadline        DateTime?
   createdAt       DateTime      @default(now())
@@ -112,3 +113,4 @@ enum TaskStatus {
   DONE
   CANCELLED
 }
+

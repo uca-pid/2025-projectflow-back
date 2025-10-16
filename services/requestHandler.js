@@ -96,13 +96,15 @@ export const getTaskById = async (user, taskId) => {
   // Check if user has access to the task
   const hasAccess =
     task.creatorId === user.id ||
-    task.assignedUsers.some((u) => u.id === user.id);
+    task.assignedUsers.some((u) => u.id === user.id) ||
+    task.isPublic;
 
   if (!hasAccess) {
     // Return limited info if no access
     return {
       id: task.id,
       title: task.title,
+      isPublic: task.isPublic,
     };
   }
 
@@ -151,12 +153,14 @@ export const updateTask = async (
   description,
   deadline,
   status,
+  isPublic,
 ) => {
   const updateData = {};
   if (title) updateData.title = title;
   if (description !== undefined) updateData.description = description;
   if (deadline) updateData.deadline = new Date(deadline);
   if (status) updateData.status = status;
+  if (isPublic !== undefined) updateData.isPublic = isPublic === "true";
 
   const foundTask = await getTaskByIdDb(taskId);
   if (!foundTask) {
@@ -190,6 +194,49 @@ export const deleteTask = async (user, taskId) => {
 
   const result = await deleteTaskDb(taskId);
   return result;
+};
+
+// Clone task
+export const cloneTask = async (
+  currentUser,
+  taskId,
+  parentId,
+  verify = true,
+) => {
+  if (!taskId || taskId.trim() === "") {
+    throwError(400, "Task ID is required");
+  }
+
+  const task = await getTaskByIdDb(taskId);
+
+  if (verify) {
+    if (!task) {
+      throwError(404, "Task not found");
+    }
+
+    const hasAccess =
+      task.creatorId === currentUser.id ||
+      task.assignedUsers.some((u) => u.id === currentUser.id) ||
+      task.isPublic;
+
+    if (!hasAccess) {
+      throwError(403, "No access to this task");
+    }
+  }
+
+  const clonedTask = await createTaskDb(
+    currentUser.id,
+    task.title,
+    task.description,
+    task.deadline,
+    parentId,
+  );
+  console.log("task", task);
+  console.log("clone", clonedTask);
+
+  for (const subTask of task.subTasks) {
+    await cloneTask(currentUser, subTask.id, clonedTask.id, false);
+  }
 };
 
 // Assign user to task

@@ -5,6 +5,7 @@ import {
   createTask,
   updateTask,
   deleteTask,
+  cloneTask,
   assignUserToTask,
   unassignUserFromTask,
   getTaskById,
@@ -58,6 +59,19 @@ router.post("/:id/create", validateAuthorization, async (req, res) => {
       id,
     );
     res.status(201).json({ success: true, data: subTask });
+  } catch (error) {
+    res
+      .status(error.status || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+// POST /task/clone/:id - Clone a public task
+router.post("/clone/:id", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const task = await cloneTask(req.user, id, null);
+    res.status(201).json({ success: true, data: task });
   } catch (error) {
     res
       .status(error.status || 500)
@@ -139,9 +153,9 @@ router.get("/:id", validateAuthorization, async (req, res) => {
 
     res.status(200).json({ success: true, data: task });
   } catch (error) {
-    console.log(error);
+    console.log("Here is error", error);
     res
-      .status(error.status || 500)
+      .status(error.statusCode || 500)
       .json({ success: false, message: error.message });
   }
 });
@@ -150,7 +164,7 @@ router.get("/:id", validateAuthorization, async (req, res) => {
 router.put("/:id", validateAuthorization, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, deadline, status } = req.body;
+    const { title, description, deadline, status, isPublic } = req.body;
 
     const task = await updateTask(
       req.user,
@@ -159,6 +173,7 @@ router.put("/:id", validateAuthorization, async (req, res) => {
       description,
       deadline,
       status,
+      isPublic,
     );
     res.status(200).json({ success: true, data: task });
   } catch (error) {
