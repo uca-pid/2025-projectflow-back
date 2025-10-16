@@ -21,7 +21,6 @@ import {
 
 const hasAccessToEdit = async (user, task) => {
   let currentTask = task;
-  console.log("currentTask", currentTask.title);
   while (currentTask.parentTaskId !== null) {
     if (
       currentTask.creatorId === user.id ||
@@ -402,9 +401,13 @@ export const applyUserToTask = async (currentUser, taskId) => {
   return result;
 };
 
-export const rejectUserFromTask = async (currentUser, taskId) => {
+export const rejectUserFromTask = async (currentUser, taskId, userId) => {
   if (!taskId || taskId.trim() === "") {
     throwError(400, "Task ID is required");
+  }
+
+  if (!userId || userId.trim() === "") {
+    throwError(400, "User ID is required");
   }
 
   // Verify task exists
@@ -413,12 +416,18 @@ export const rejectUserFromTask = async (currentUser, taskId) => {
     throwError(404, "Task not found");
   }
 
+  // Verify user exists
+  const user = await getUserByIdDb(userId);
+  if (!user) {
+    throwError(404, "User not found");
+  }
+
   const isOwner = task.creatorId === currentUser.id;
   if (!isOwner) {
     throwError(403, "You are not the owner of this task");
   }
 
-  const result = await rejectUserFromTaskDb(currentUser.id, taskId);
+  const result = await rejectUserFromTaskDb(userId, taskId);
   return result;
 };
 

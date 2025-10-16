@@ -312,12 +312,12 @@ export async function applyUserToTask(currentUserId, taskId) {
   return result;
 }
 
-export async function rejectUserFromTask(currentUserId, taskId) {
+export async function rejectUserFromTask(userId, taskId) {
   const result = await prisma.task.update({
     where: { id: taskId },
     data: {
       appliedUsers: {
-        disconnect: { id: currentUserId },
+        disconnect: { id: userId },
       },
     },
   });
