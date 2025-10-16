@@ -15,9 +15,6 @@ app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// Log requests (optional)
-app.use(logRequest);
-
 //Cross origin requests
 app.use(
   cors({
@@ -25,6 +22,9 @@ app.use(
     credentials: true,
   }),
 );
+
+// Log requests (optional)
+//app.use(logRequest);
 
 app.all("/api/auth/{*any}", toNodeHandler(auth));
 

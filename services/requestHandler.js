@@ -13,6 +13,10 @@ import {
   unassignUserFromTask as unassignUserFromTaskDb,
   applyUserToTask as applyUserToTaskDb,
   rejectUserFromTask as rejectUserFromTaskDb,
+  getUserInvites as getUserInvitesDb,
+  rejectInvite as rejectInviteDb,
+  getUserByEmail,
+  createInvitation,
 } from "./databaseService.js";
 
 export const getAllUsers = async (user) => {
@@ -240,7 +244,12 @@ export const cloneTask = async (
 };
 
 // Assign user to task
-export const assignUserToTask = async (currentUser, taskId, userId) => {
+export const assignUserToTask = async (
+  currentUser,
+  taskId,
+  userId,
+  role = "viewer",
+) => {
   if (!taskId || taskId.trim() === "") {
     throwError(400, "Task ID is required");
   }
@@ -260,10 +269,13 @@ export const assignUserToTask = async (currentUser, taskId, userId) => {
     throwError(404, "User not found");
   }
 
+  const invited = task.invitations.some((i) => i.invitedId === currentUser.id);
+
   // Check if current user has access to task
   const hasAccess =
     task.creatorId === currentUser.id ||
-    task.assignedUsers.some((u) => u.id === currentUser.id);
+    task.assignedUsers.some((u) => u.id === currentUser.id) ||
+    invited;
   if (!hasAccess) {
     throwError(403, "No access to this task");
   }
@@ -274,7 +286,28 @@ export const assignUserToTask = async (currentUser, taskId, userId) => {
     throwError(409, "User is already assigned to this task");
   }
 
-  const result = await assignUserToTaskDb(taskId, userId);
+  const type = invited ? "invite" : "assign";
+  const result = await assignUserToTaskDb(taskId, userId, type, role);
+  return result;
+};
+
+export const rejectInvite = async (currentUser, taskId) => {
+  if (!taskId || taskId.trim() === "") {
+    throwError(400, "Task ID is required");
+  }
+  const task = await getTaskByIdDb(taskId);
+
+  if (!task) {
+    throwError(404, "Task not found");
+  }
+
+  const invite = task.invitations.find((i) => i.invitedId === currentUser.id);
+
+  if (!invite) {
+    throwError(403, "You are not invited to this task");
+  }
+
+  const result = await rejectInviteDb(invite.invitationId);
   return result;
 };
 
@@ -302,7 +335,9 @@ export const unassignUserFromTask = async (currentUser, taskId, userId) => {
   }
 
   // Check if user is actually assigned
-  const isAssigned = task.assignedUsers.some((u) => u.id === userId);
+  const isAssigned =
+    task.assignedUsers.some((u) => u.id === userId) ||
+    task.trackedUsers.some((u) => u.id === userId);
   if (!isAssigned) {
     throwError(409, "User is not assigned to this task");
   }
@@ -358,4 +393,42 @@ export const rejectUserFromTask = async (currentUser, taskId) => {
 
   const result = await rejectUserFromTaskDb(currentUser.id, taskId);
   return result;
+};
+
+// Simple invite to task function
+export const inviteUserToTask = async (currentUser, taskId, email) => {
+  if (!taskId || !email) {
+    throwError(400, "Task ID and email are required");
+  }
+
+  // Check if task exists and user has permission
+  const task = await getTaskByIdDb(taskId);
+  if (!task) {
+    throwError(404, "Task not found");
+  }
+
+  if (task.creatorId !== currentUser.id) {
+    throwError(403, "Only task creator can invite users");
+  }
+
+  const userToInvite = await getUserByEmail(email);
+  if (!userToInvite) {
+    throwError(404, "User with this email not found");
+  }
+
+  if (userToInvite.invitations?.some((i) => i.taskId === taskId)) {
+    throwError(409, "User already invited to this task");
+  }
+
+  const invitation = await createInvitation(
+    taskId,
+    currentUser.id,
+    userToInvite.id,
+  );
+  return invitation;
+};
+
+export const getUserInvites = async (currentUser) => {
+  const invites = await getUserInvitesDb(currentUser.id);
+  return invites;
 };

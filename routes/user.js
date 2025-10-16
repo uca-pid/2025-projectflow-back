@@ -1,3 +1,4 @@
+import { validateAuthorization } from "../services/validationService.js";
 import express from "express";
 import { auth } from "../auth.js";
 import { fromNodeHeaders } from "better-auth/node";
@@ -5,9 +6,9 @@ import {
   getAllUsers,
   updateUser,
   deleteUser,
+  getUserInvites,
 } from "../services/requestHandler.js";
 import { handleError } from "../services/errorHandler.js";
-import { validateAuthorization } from "../services/validationService.js";
 
 const router = express.Router();
 router.use(express.json());
@@ -26,7 +27,7 @@ router.get("/", async (req, res) => {
 // Get all users
 router.get("/getAll", validateAuthorization, async (req, res) => {
   try {
-    const users = await getAllUsers(req.userSession.user);
+    const users = await getAllUsers(req.user);
     res.status(200).json({ data: users });
   } catch (error) {
     handleError(error);
@@ -40,7 +41,7 @@ router.put("/update/:userId", validateAuthorization, async (req, res) => {
     const { userToUpdateData } = req.body;
 
     const updatedUser = await updateUser(
-      req.userSession.user,
+      req.user,
       userToUpdateId,
       userToUpdateData,
     );
@@ -56,9 +57,20 @@ router.put("/update/:userId", validateAuthorization, async (req, res) => {
 router.delete("/:userId", validateAuthorization, async (req, res) => {
   try {
     const userToDeleteId = req.params.userId;
-    const deletedUser = await deleteUser(req.userSession.user, userToDeleteId);
+    const deletedUser = await deleteUser(req.user, userToDeleteId);
     res.json({ data: deletedUser });
   } catch (error) {
+    handleError(error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/invites", validateAuthorization, async (req, res) => {
+  try {
+    const invites = await getUserInvites(req.user);
+    res.json({ data: invites });
+  } catch (error) {
+    console.log(error);
     handleError(error);
     res.status(500).json({ error: error.message });
   }
