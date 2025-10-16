@@ -152,7 +152,7 @@ export const getTaskById = async (user, taskId) => {
     throwError(404, "Task not found");
   }
 
-  if (!hasAccessToView(user, task)) {
+  if (!(await hasAccessToView(user, task))) {
     // Return limited info if no access
     return {
       id: task.id,
@@ -171,22 +171,18 @@ export const createTask = async (
   deadline,
   parentTaskId = null,
 ) => {
-  console.log("Starting creation...");
   if (!title || title.trim() === "") {
     throwError(400, "Title is required");
   }
 
   let parentTask;
   if (parentTaskId) {
-    console.log("Finding parent");
     parentTask = await getTaskByIdDb(parentTaskId);
-    console.log("Parent found", parentTask);
     if (!parentTask) {
       throwError(404, "Parent task not found");
     }
 
     const access = await hasAccessToEdit(user, parentTask);
-    console.log("access", access);
     if (!access) {
       throwError(403, "No access to parent task");
     }
@@ -263,7 +259,7 @@ export const cloneTask = async (
       throwError(404, "Task not found");
     }
 
-    if (!hasAccessToView(currentUser, task)) {
+    if (!(await hasAccessToView(currentUser, task))) {
       throwError(403, "No access to this task");
     }
   }
@@ -275,8 +271,6 @@ export const cloneTask = async (
     task.deadline,
     parentId,
   );
-  console.log("task", task);
-  console.log("clone", clonedTask);
 
   for (const subTask of task.subTasks) {
     await cloneTask(currentUser, subTask.id, clonedTask.id, false);

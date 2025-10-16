@@ -229,7 +229,7 @@ router.get("/:id", validateAuthorization, async (req, res) => {
 
     res.status(200).json({ success: true, data: task });
   } catch (error) {
-    console.log("Here is error", error);
+    console.log(error);
     res
       .status(error.statusCode || 500)
       .json({ success: false, message: error.message });
