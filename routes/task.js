@@ -1,7 +1,9 @@
 import { validateAuthorization } from "../services/validationService.js";
 import express from "express";
 import {
-  getTasks,
+  getUserTasks,
+  getAssignedTasks,
+  getTrackedTasks,
   createTask,
   updateTask,
   deleteTask,
@@ -18,10 +20,36 @@ import {
 const router = express.Router();
 router.use(express.json());
 
-// GET /task - Get all tasks for the authenticated user
+// GET /task/getTasks - Get all tasks for the authenticated user
 router.get("/getTasks", validateAuthorization, async (req, res) => {
   try {
-    const tasks = await getTasks(req.user);
+    const tasks = await getUserTasks(req.user);
+    res.status(200).json({ success: true, data: tasks });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.status || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+// GET /task/getAssigned - Get all tasks assigned to the authenticated user
+router.get("/getAssignedTasks", validateAuthorization, async (req, res) => {
+  try {
+    const tasks = await getAssignedTasks(req.user);
+    res.status(200).json({ success: true, data: tasks });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.status || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+// GET /task/getTracked - Get all tasks assigned to the authenticated user
+router.get("/getTrackedTasks", validateAuthorization, async (req, res) => {
+  try {
+    const tasks = await getTrackedTasks(req.user);
     res.status(200).json({ success: true, data: tasks });
   } catch (error) {
     console.log(error);
@@ -52,7 +80,6 @@ router.post("/:id/create", validateAuthorization, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, deadline } = req.body;
-
     const subTask = await createTask(
       req.user,
       title,

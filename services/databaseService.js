@@ -117,7 +117,11 @@ async function getSubTasksRecursively(taskId) {
 export async function getAllTasks(userId) {
   const tasks = await prisma.task.findMany({
     where: {
-      OR: [{ creatorId: userId }, { assignedUsers: { some: { id: userId } } }],
+      OR: [
+        { creatorId: userId },
+        { assignedUsers: { some: { id: userId } } },
+        { trackedUsers: { some: { id: userId } } },
+      ],
     },
     include: {
       creator: {

@@ -24,7 +24,7 @@ app.use(
 );
 
 // Log requests (optional)
-//app.use(logRequest);
+app.use(logRequest);
 
 app.all("/api/auth/{*any}", toNodeHandler(auth));
 
