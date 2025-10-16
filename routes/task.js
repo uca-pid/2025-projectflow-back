@@ -10,6 +10,8 @@ import {
   getTaskById,
   applyUserToTask,
   rejectUserFromTask,
+  inviteUserToTask,
+  rejectInvite,
 } from "../services/requestHandler.js";
 
 const router = express.Router();
@@ -69,7 +71,20 @@ router.post("/:id/assign/:userId", validateAuthorization, async (req, res) => {
   try {
     const { id, userId } = req.params;
 
-    const result = await assignUserToTask(req.user, id, userId);
+    const result = await assignUserToTask(req.user, id, userId, "assignee");
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    res
+      .status(error.status || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+router.post("/:id/allow/:userId", validateAuthorization, async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+
+    const result = await assignUserToTask(req.user, id, userId, "viewer");
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     res
@@ -89,6 +104,7 @@ router.post(
       const result = await unassignUserFromTask(req.user, id, userId);
       res.status(200).json({ success: true, data: result });
     } catch (error) {
+      console.log(error);
       res
         .status(error.status || 500)
         .json({ success: false, message: error.message });
@@ -129,6 +145,39 @@ router.post(
     }
   },
 );
+
+// POST /task/taskId/accept
+router.post("/:taskId/accept", validateAuthorization, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const result = await assignUserToTask(
+      req.user,
+      taskId,
+      req.user.id,
+      "assignee",
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.status || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+// POST /task/taskId/reject
+router.post("/:taskId/reject", validateAuthorization, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const result = await rejectInvite(req.user, taskId);
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.status || 500)
+      .json({ success: false, message: error.message });
+  }
+});
 
 // GET/task/:id - Get task by id
 router.get("/:id", validateAuthorization, async (req, res) => {
@@ -198,7 +247,5 @@ router.post("/:id/invite", validateAuthorization, async (req, res) => {
       .json({ success: false, message: error.message });
   }
 });
-
-
 
 export default router;

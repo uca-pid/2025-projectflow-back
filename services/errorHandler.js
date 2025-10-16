@@ -5,27 +5,27 @@ export function handleError(err) {
   }
 }
 
-export function throwError(code) {
+export function throwError(code, message = null) {
   var err = new Error();
   err["statusCode"] = code;
   switch (code) {
     case 400:
-      err.message = "Bad request.";
+      err.message = message || "Bad request.";
       break;
     case 401:
-      err.message = "Unauthorized.";
+      err.message = message || "Unauthorized.";
       break;
     case 403:
-      err.message = "Forbidden.";
+      err.message = message || "Forbidden.";
       break;
     case 404:
-      err.message = "Not found.";
+      err.message = message || "Not found.";
       break;
     case 409:
-      err.message = "Already exists.";
+      err.message = message || "Already exists.";
       break;
     case 500:
-      err.message = "Internal server error.";
+      err.message = message || "Internal server error.";
       break;
   }
   throw err;
