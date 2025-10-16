@@ -27,6 +27,9 @@ model User {
   createdTasks  Task[]    @relation("TaskCreator")
   assignedTasks Task[]    @relation("TaskAssignments")
   appliedTasks  Task[]    @relation("TaskApplications")
+
+
+  invitations Invitation[] @relation("UserInvitation")
 }
 
 enum Role {
@@ -97,13 +100,25 @@ model Task {
 
   // Applied users (many-to-many)
   appliedUsers    User[]        @relation("TaskApplications")
-  
+  invitations Invitation[] @relation("TaskInvitation")
 
   parentTaskId    String?
   parentTask      Task?         @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: Cascade)
   subTasks        Task[]        @relation("TaskHierarchy")
 
+
   @@map("task")
+}
+
+model Invitation{
+  invitationId String @id @default(cuid())
+  inviterId String
+  invitedId String
+  taskId String 
+
+  invited User  @relation("UserInvitation", fields: [invitedId], references: [id], onDelete: Cascade)
+  task Task @relation("TaskInvitation", fields: [taskId], references: [id], onDelete: Cascade)
+  
 }
 
 enum TaskStatus {

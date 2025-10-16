@@ -26,6 +26,22 @@ export async function getUserById(id) {
   return user;
 }
 
+export async function getUserByEmail(email) {
+  const user = await prisma.user.findUnique({ where: { email } });
+  return user;
+}
+
+export async function createInvitation(taskId, inviterId, invitedId) {
+  const invitation = await prisma.invitation.create({
+    data: {
+      taskId,
+      inviterId,
+      invitedId,
+    },
+  });
+  return invitation;
+}
+
 export async function updateUser(userToUpdate) {
   const updatedUser = await prisma.user.update({
     where: {

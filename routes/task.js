@@ -180,9 +180,25 @@ router.delete("/:id", validateAuthorization, async (req, res) => {
       .json({ success: true, message: "Task deleted successfully" });
   } catch (error) {
     res
-      .status(error.status || 500)
+      .status(error.statusCode || 500)
       .json({ success: false, message: error.message });
   }
 });
+
+router.post("/:id/invite", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email } = req.body;
+    const invitation = await inviteUserToTask(req.user, id, email);
+    res.status(200).json({ success: true, data: invitation });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+
 
 export default router;

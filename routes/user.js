@@ -64,4 +64,5 @@ router.delete("/:userId", validateAuthorization, async (req, res) => {
   }
 });
 
+
 export default router;

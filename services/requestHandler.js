@@ -13,6 +13,8 @@ import {
   unassignUserFromTask as unassignUserFromTaskDb,
   applyUserToTask as applyUserToTaskDb,
   rejectUserFromTask as rejectUserFromTaskDb,
+  getUserByEmail,
+  createInvitation,
 } from "./databaseService.js";
 
 export const getAllUsers = async (user) => {
@@ -231,6 +233,8 @@ export const assignUserToTask = async (currentUser, taskId, userId) => {
   return result;
 };
 
+
+
 // Unassign user from task
 export const unassignUserFromTask = async (currentUser, taskId, userId) => {
   if (!taskId || taskId.trim() === "") {
@@ -312,3 +316,36 @@ export const rejectUserFromTask = async (currentUser, taskId) => {
   const result = await rejectUserFromTaskDb(currentUser.id, taskId);
   return result;
 };
+
+// Simple invite to task function
+export const inviteUserToTask = async (currentUser, taskId, email) => {
+  console.log("🔍 INVITE DEBUG:");
+  console.log("Current User ID:", currentUser.id);
+  console.log("Task ID:", taskId);
+  console.log("Email:", email);
+  
+  if (!taskId || !email) {
+    throwError(400, "Task ID and email are required");
+  }
+
+  // Check if task exists and user has permission
+  const task = await getTaskByIdDb(taskId);
+  if (!task) {
+    throwError(404, "Task not found");
+  }
+
+  console.log("Task Creator ID:", task.creatorId);
+  console.log("Is Creator?", task.creatorId === currentUser.id);
+
+  if (task.creatorId !== currentUser.id) {
+    throwError(403, "Only task creator can invite users");
+  }
+
+  const userToInvite = await getUserByEmail(email);
+  if (!userToInvite) {
+    throwError(404, "User with this email not found");
+  }
+  const invitation = await createInvitation(taskId, currentUser.id, userToInvite.id);
+  return invitation;
+
+}
