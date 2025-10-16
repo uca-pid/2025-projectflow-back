@@ -15,16 +15,16 @@ app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// Log requests (optional)
-app.use(logRequest);
-
 //Cross origin requests
 app.use(
   cors({
-    origin: "https://projectflow.semantic.com.ar",
+    origin: process.env.FRONTEND_URL,
     credentials: true,
   }),
 );
+
+// Log requests (optional)
+app.use(logRequest);
 
 app.all("/api/auth/{*any}", toNodeHandler(auth));
 

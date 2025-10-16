@@ -26,6 +26,42 @@ export async function getUserById(id) {
   return user;
 }
 
+export async function getUserByEmail(email) {
+  const user = await prisma.user.findUnique({
+    where: { email },
+    include: { invitations: true },
+  });
+  return user;
+}
+
+export async function createInvitation(taskId, inviterId, invitedId) {
+  const invitation = await prisma.invitation.create({
+    data: {
+      taskId,
+      inviterId,
+      invitedId,
+    },
+  });
+  return invitation;
+}
+
+export async function getUserInvites(userId) {
+  const invites = await prisma.invitation.findMany({
+    where: {
+      invitedId: userId,
+    },
+    include: {
+      inviter: {
+        select: { name: true, email: true },
+      },
+      task: {
+        select: { title: true },
+      },
+    },
+  });
+  return invites;
+}
+
 export async function updateUser(userToUpdate) {
   const updatedUser = await prisma.user.update({
     where: {
@@ -81,7 +117,11 @@ async function getSubTasksRecursively(taskId) {
 export async function getAllTasks(userId) {
   const tasks = await prisma.task.findMany({
     where: {
-      OR: [{ creatorId: userId }, { assignedUsers: { some: { id: userId } } }],
+      OR: [
+        { creatorId: userId },
+        { assignedUsers: { some: { id: userId } } },
+        { trackedUsers: { some: { id: userId } } },
+      ],
     },
     include: {
       creator: {
@@ -91,6 +131,9 @@ export async function getAllTasks(userId) {
         select: { id: true, name: true, email: true },
       },
       appliedUsers: {
+        select: { id: true, name: true, email: true },
+      },
+      trackedUsers: {
         select: { id: true, name: true, email: true },
       },
       parentTask: {
@@ -116,9 +159,13 @@ export async function getTaskById(taskId) {
       assignedUsers: {
         select: { id: true, name: true, email: true },
       },
+      trackedUsers: {
+        select: { id: true, name: true, email: true },
+      },
       parentTask: {
         select: { id: true, title: true },
       },
+      invitations: true,
     },
   });
 
@@ -184,20 +231,57 @@ export async function deleteTask(taskId) {
   return { message: "Task deleted" };
 }
 
-export async function assignUserToTask(taskId, userIdToAssign) {
-  const updatedTask = await prisma.task.update({
-    where: { id: taskId },
-    data: {
-      assignedUsers: {
-        connect: { id: userIdToAssign },
+export async function assignUserToTask(
+  taskId,
+  userIdToAssign,
+  type = "assign",
+  role = "viewer",
+) {
+  let updatedTask;
+
+  if (role === "viewer") {
+    await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        trackedUsers: {
+          connect: { id: userIdToAssign },
+        },
+        appliedUsers: {
+          disconnect: { id: userIdToAssign },
+        },
       },
-      appliedUsers: {
-        disconnect: { id: userIdToAssign },
+    });
+  } else if (role === "assignee") {
+    updatedTask = await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        assignedUsers: {
+          connect: { id: userIdToAssign },
+        },
+        appliedUsers: {
+          disconnect: { id: userIdToAssign },
+        },
       },
-    },
-  });
+    });
+  }
+
+  if (type === "invite") {
+    await prisma.invitation.deleteMany({
+      where: {
+        invitedId: userIdToAssign,
+        taskId: taskId,
+      },
+    });
+  }
 
   return updatedTask;
+}
+
+export async function rejectInvite(invitationId) {
+  const result = await prisma.invitation.delete({
+    where: { invitationId },
+  });
+  return result;
 }
 
 export async function unassignUserFromTask(taskId, userIdToUnassign) {
@@ -205,6 +289,9 @@ export async function unassignUserFromTask(taskId, userIdToUnassign) {
     where: { id: taskId },
     data: {
       assignedUsers: {
+        disconnect: { id: userIdToUnassign },
+      },
+      trackedUsers: {
         disconnect: { id: userIdToUnassign },
       },
     },
@@ -225,12 +312,12 @@ export async function applyUserToTask(currentUserId, taskId) {
   return result;
 }
 
-export async function rejectUserFromTask(currentUserId, taskId) {
+export async function rejectUserFromTask(userId, taskId) {
   const result = await prisma.task.update({
     where: { id: taskId },
     data: {
       appliedUsers: {
-        disconnect: { id: currentUserId },
+        disconnect: { id: userId },
       },
     },
   });

@@ -1,24 +1,55 @@
 import { validateAuthorization } from "../services/validationService.js";
 import express from "express";
 import {
-  getTasks,
+  getUserTasks,
+  getAssignedTasks,
+  getTrackedTasks,
   createTask,
   updateTask,
   deleteTask,
+  cloneTask,
   assignUserToTask,
   unassignUserFromTask,
   getTaskById,
   applyUserToTask,
   rejectUserFromTask,
+  inviteUserToTask,
+  rejectInvite,
 } from "../services/requestHandler.js";
 
 const router = express.Router();
 router.use(express.json());
 
-// GET /task - Get all tasks for the authenticated user
+// GET /task/getTasks - Get all tasks for the authenticated user
 router.get("/getTasks", validateAuthorization, async (req, res) => {
   try {
-    const tasks = await getTasks(req.user);
+    const tasks = await getUserTasks(req.user);
+    res.status(200).json({ success: true, data: tasks });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.status || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+// GET /task/getAssigned - Get all tasks assigned to the authenticated user
+router.get("/getAssignedTasks", validateAuthorization, async (req, res) => {
+  try {
+    const tasks = await getAssignedTasks(req.user);
+    res.status(200).json({ success: true, data: tasks });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.status || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+// GET /task/getTracked - Get all tasks assigned to the authenticated user
+router.get("/getTrackedTasks", validateAuthorization, async (req, res) => {
+  try {
+    const tasks = await getTrackedTasks(req.user);
     res.status(200).json({ success: true, data: tasks });
   } catch (error) {
     console.log(error);
@@ -49,7 +80,6 @@ router.post("/:id/create", validateAuthorization, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, deadline } = req.body;
-
     const subTask = await createTask(
       req.user,
       title,
@@ -65,11 +95,37 @@ router.post("/:id/create", validateAuthorization, async (req, res) => {
   }
 });
 
+// POST /task/clone/:id - Clone a public task
+router.post("/clone/:id", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const task = await cloneTask(req.user, id, null);
+    res.status(201).json({ success: true, data: task });
+  } catch (error) {
+    res
+      .status(error.status || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
 router.post("/:id/assign/:userId", validateAuthorization, async (req, res) => {
   try {
     const { id, userId } = req.params;
 
-    const result = await assignUserToTask(req.user, id, userId);
+    const result = await assignUserToTask(req.user, id, userId, "assignee");
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    res
+      .status(error.status || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+router.post("/:id/allow/:userId", validateAuthorization, async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+
+    const result = await assignUserToTask(req.user, id, userId, "viewer");
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     res
@@ -89,6 +145,7 @@ router.post(
       const result = await unassignUserFromTask(req.user, id, userId);
       res.status(200).json({ success: true, data: result });
     } catch (error) {
+      console.log(error);
       res
         .status(error.status || 500)
         .json({ success: false, message: error.message });
@@ -130,6 +187,39 @@ router.post(
   },
 );
 
+// POST /task/taskId/accept
+router.post("/:taskId/accept", validateAuthorization, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const result = await assignUserToTask(
+      req.user,
+      taskId,
+      req.user.id,
+      "assignee",
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.status || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+// POST /task/taskId/reject
+router.post("/:taskId/reject", validateAuthorization, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const result = await rejectInvite(req.user, taskId);
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.status || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
 // GET/task/:id - Get task by id
 router.get("/:id", validateAuthorization, async (req, res) => {
   try {
@@ -141,7 +231,7 @@ router.get("/:id", validateAuthorization, async (req, res) => {
   } catch (error) {
     console.log(error);
     res
-      .status(error.status || 500)
+      .status(error.statusCode || 500)
       .json({ success: false, message: error.message });
   }
 });
@@ -150,7 +240,7 @@ router.get("/:id", validateAuthorization, async (req, res) => {
 router.put("/:id", validateAuthorization, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, deadline, status } = req.body;
+    const { title, description, deadline, status, isPublic } = req.body;
 
     const task = await updateTask(
       req.user,
@@ -159,6 +249,7 @@ router.put("/:id", validateAuthorization, async (req, res) => {
       description,
       deadline,
       status,
+      isPublic,
     );
     res.status(200).json({ success: true, data: task });
   } catch (error) {
@@ -180,7 +271,21 @@ router.delete("/:id", validateAuthorization, async (req, res) => {
       .json({ success: true, message: "Task deleted successfully" });
   } catch (error) {
     res
-      .status(error.status || 500)
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+router.post("/:id/invite", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email } = req.body;
+    const invitation = await inviteUserToTask(req.user, id, email);
+    res.status(200).json({ success: true, data: invitation });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
       .json({ success: false, message: error.message });
   }
 });

@@ -10,7 +10,7 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
-  trustedOrigins: ["https://projectflow.semantic.com.ar"],
+  trustedOrigins: [process.env.FRONTEND_URL],
   emailAndPassword: {
     enabled: true,
     sendResetPassword: async ({ user, url, token }, request) => {
