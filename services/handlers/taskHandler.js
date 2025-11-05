@@ -55,11 +55,11 @@ export const getTaskById = async (user, taskId) => {
     throwError(404, "Task not found");
   }
 
-  if (!(await hasAccessToView(user, task))) {
+  const hasAccess = await hasAccessToView(user, task);
+  if (!hasAccess) {
     return {
       id: task.id,
       title: task.title,
-      isPublic: task.isPublic,
     };
   }
 
