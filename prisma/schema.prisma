@@ -105,6 +105,7 @@ model Task {
   // Completed by relationship
   completedById   String?
   completedBy     User?         @relation("TaskCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  completedAt     DateTime?
   
   // Assigned users (many-to-many)
   assignedUsers   User[]        @relation("TaskAssignments")

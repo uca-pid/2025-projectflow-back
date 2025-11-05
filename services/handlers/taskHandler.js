@@ -17,6 +17,7 @@ import {
   createNote as createNoteDb,
   getTaskNotes as getTaskNotesDb,
   deleteNote as deleteNoteDb,
+  unmarkTaskAsCompleted as unmarkTaskAsCompletedDb,
 } from "../databaseService.js";
 
 // Import shared auth utilities
@@ -57,11 +58,11 @@ export const getTaskById = async (user, taskId) => {
     throwError(404, "Task not found");
   }
 
-  if (!(await hasAccessToView(user, task))) {
+  const hasAccess = await hasAccessToView(user, task);
+  if (!hasAccess) {
     return {
       id: task.id,
       title: task.title,
-      isPublic: task.isPublic,
     };
   }
 
@@ -125,6 +126,12 @@ export const updateTask = async (
 
   if (!(await hasAccessToEdit(user, foundTask))) {
     throwError(403, "No access to this task");
+  }
+
+  if (status === "DONE") {
+    await markTaskAsCompletedDb(taskId, user.id);
+  } else {
+    if (foundTask.status === "DONE") await unmarkTaskAsCompletedDb(taskId);
   }
 
   const task = await updateTaskDb(taskId, updateData);

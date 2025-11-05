@@ -101,9 +101,14 @@ async function getSubTasksRecursively(taskId) {
       appliedUsers: {
         select: { id: true, name: true, email: true },
       },
+      trackedUsers: {
+        select: { id: true, name: true, email: true },
+      },
       parentTask: {
         select: { id: true, title: true },
       },
+      completedBy: true,
+      invitations: true,
     },
   });
 
@@ -139,6 +144,8 @@ export async function getAllTasks(userId) {
       parentTask: {
         select: { id: true, title: true },
       },
+      completedBy: true,
+      invitations: true,
     },
   });
 
@@ -168,6 +175,7 @@ export async function getTaskById(taskId) {
       parentTask: {
         select: { id: true, title: true },
       },
+      completedBy: true,
       invitations: true,
       notes: {
         include: {
@@ -341,13 +349,19 @@ export async function markTaskAsCompleted(taskId, completedByUserId) {
   const result = await prisma.task.update({
     where: { id: taskId },
     data: {
-      status: "DONE",
       completedById: completedByUserId,
+      completedAt: new Date(),
     },
-    include: {
-      creator: true,
-      assignedUsers: true,
-      completedBy: true,
+  });
+  return result;
+}
+
+export async function unmarkTaskAsCompleted(taskId) {
+  const result = await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      completedById: null,
+      completedAt: null,
     },
   });
   return result;

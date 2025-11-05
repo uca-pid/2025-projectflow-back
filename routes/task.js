@@ -246,8 +246,6 @@ router.put("/:id", validateAuthorization, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, deadline, status, isPublic } = req.body;
-    console.log("body", JSON.stringify(req.body, null, 2));
-    console.log("id", id);
     const task = await updateTask(
       req.user,
       id,
@@ -294,24 +292,6 @@ router.post("/:id/invite", validateAuthorization, async (req, res) => {
       .json({ success: false, message: error.message });
   }
 });
-
-router.post("/:id/complete", validateAuthorization, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const completedTask = await markTaskCompleted(req.user, id);
-    res.status(200).json({ 
-      success: true, 
-      data: completedTask,
-      message: "Task marked as completed successfully" 
-    });
-  } catch (error) {
-    console.log(error);
-    res
-      .status(error.statusCode || 500)
-      .json({ success: false, message: error.message });
-  }
-});
-
 
 router.post("/:id/notes", validateAuthorization, async (req, res) => {
   try {
