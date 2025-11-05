@@ -15,7 +15,7 @@ import {
   rejectUserFromTask,
   inviteUserToTask,
   rejectInvite,
-} from "../services/requestHandler.js";
+} from "../services/handlers/taskHandler.js";
 
 const router = express.Router();
 router.use(express.json());

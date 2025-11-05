@@ -1,9 +1,5 @@
-import { throwError } from "./errorHandler.js";
+import { throwError } from "../errorHandler.js";
 import {
-  getAllUsers as getAllUsersDb,
-  updateUser as updateUserDb,
-  getUserById as getUserByIdDb,
-  deleteUser as deleteUserDb,
   getAllTasks,
   getTaskById as getTaskByIdDb,
   createTask as createTaskDb,
@@ -13,109 +9,15 @@ import {
   unassignUserFromTask as unassignUserFromTaskDb,
   applyUserToTask as applyUserToTaskDb,
   rejectUserFromTask as rejectUserFromTaskDb,
-  getUserInvites as getUserInvitesDb,
   rejectInvite as rejectInviteDb,
+  getUserById as getUserByIdDb,
   getUserByEmail,
   createInvitation,
-} from "./databaseService.js";
+} from "../databaseService.js";
 
-const hasAccessToEdit = async (user, task) => {
-  let currentTask = task;
-  while (currentTask.parentTaskId !== null) {
-    if (
-      currentTask.creatorId === user.id ||
-      currentTask.assignedUsers?.some((u) => u.id === user.id)
-    ) {
-      return true;
-    }
-    const parent = await getTaskByIdDb(currentTask.parentTaskId);
-    currentTask = parent;
-    console.log("currentTask", currentTask.title);
-  }
-  return (
-    currentTask.creatorId === user.id ||
-    currentTask.assignedUsers?.some((u) => u.id === user.id)
-  );
-};
+// Import shared auth utilities
+import { hasAccessToEdit, hasAccessToView } from "./authHandler.js";
 
-const hasAccessToView = async (user, task) => {
-  let currentTask = task;
-  while (currentTask.parentTaskId !== null) {
-    if (
-      currentTask.creatorId === user.id ||
-      currentTask.assignedUsers.some((u) => u.id === user.id) ||
-      currentTask.isPublic
-    ) {
-      return true;
-    }
-    const parent = await getTaskByIdDb(currentTask.parentTaskId);
-    currentTask = parent;
-  }
-  return false;
-};
-
-export const getAllUsers = async (user) => {
-  if (user.role !== "ADMIN") {
-    throwError(403);
-  }
-
-  const users = await getAllUsersDb();
-  return users;
-};
-
-export const updateUser = async (user, userToUpdateId, userToUpdateData) => {
-  if (!user) {
-    throwError(401);
-  }
-
-  if (user.role !== "ADMIN") {
-    throwError(403);
-  }
-
-  if (!userToUpdateId || !userToUpdateData) {
-    throwError(400);
-  }
-
-  if (!userToUpdateData?.id) {
-    userToUpdateData.id = userToUpdateId;
-  }
-
-  if (userToUpdateId != userToUpdateData.id) {
-    throwError(400);
-  }
-
-  const existsUser = await getUserByIdDb(userToUpdateId);
-  if (!existsUser) {
-    throwError(404);
-  }
-
-  const updatedUser = await updateUserDb(userToUpdateData);
-  return updatedUser;
-};
-
-export const deleteUser = async (user, userToDeleteId) => {
-  if (!user) {
-    throwError(401);
-  }
-
-  if (user.role !== "ADMIN") {
-    throwError(403);
-  }
-
-  if (!userToDeleteId) {
-    throwError(400);
-  }
-
-  const existsUser = await getUserByIdDb(userToDeleteId);
-  if (!existsUser) {
-    throwError(404);
-  }
-
-  const deletedUser = await deleteUserDb(userToDeleteId);
-  return deletedUser;
-};
-
-// Task functions
 export const getUserTasks = async (user) => {
   const allTasks = await getAllTasks(user.id);
   const tasks = allTasks.filter((task) => task.creatorId === user.id);
@@ -240,7 +142,6 @@ export const deleteTask = async (user, taskId) => {
   return result;
 };
 
-// Clone task
 export const cloneTask = async (
   currentUser,
   taskId,
@@ -276,7 +177,6 @@ export const cloneTask = async (
   }
 };
 
-// Assign user to task
 export const assignUserToTask = async (
   currentUser,
   taskId,
@@ -340,7 +240,6 @@ export const rejectInvite = async (currentUser, taskId) => {
   return result;
 };
 
-// Unassign user from task
 export const unassignUserFromTask = async (currentUser, taskId, userId) => {
   if (!taskId || taskId.trim() === "") {
     throwError(400, "Task ID is required");
@@ -377,7 +276,6 @@ export const unassignUserFromTask = async (currentUser, taskId, userId) => {
   return result;
 };
 
-// Apply user to task
 export const applyUserToTask = async (currentUser, taskId) => {
   if (!taskId || taskId.trim() === "") {
     throwError(400, "Task ID is required");
@@ -431,7 +329,6 @@ export const rejectUserFromTask = async (currentUser, taskId, userId) => {
   return result;
 };
 
-// Simple invite to task function
 export const inviteUserToTask = async (currentUser, taskId, email) => {
   if (!taskId || !email) {
     throwError(400, "Task ID and email are required");
@@ -462,9 +359,4 @@ export const inviteUserToTask = async (currentUser, taskId, email) => {
     userToInvite.id,
   );
   return invitation;
-};
-
-export const getUserInvites = async (currentUser) => {
-  const invites = await getUserInvitesDb(currentUser.id);
-  return invites;
 };
