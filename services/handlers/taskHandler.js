@@ -14,6 +14,7 @@ import {
   getUserByEmail,
   createInvitation,
   markTaskAsCompleted as markTaskAsCompletedDb,
+  unmarkTaskAsCompleted as unmarkTaskAsCompletedDb,
 } from "../databaseService.js";
 
 // Import shared auth utilities
@@ -122,6 +123,12 @@ export const updateTask = async (
 
   if (!(await hasAccessToEdit(user, foundTask))) {
     throwError(403, "No access to this task");
+  }
+
+  if (status === "DONE") {
+    await markTaskAsCompletedDb(taskId, user.id);
+  } else {
+    if (foundTask.status === "DONE") await unmarkTaskAsCompletedDb(taskId);
   }
 
   const task = await updateTaskDb(taskId, updateData);
@@ -360,27 +367,3 @@ export const inviteUserToTask = async (currentUser, taskId, email) => {
   );
   return invitation;
 };
-
-export const markTaskCompleted = async (currentUser, taskId) => {
-  if (!taskId || taskId.trim() === "") {
-    throwError(400, "Task ID is required");
-  }
-
-  const task = await getTaskByIdDb(taskId);
-  if (!task) {
-    throwError(404, "Task not found");
-  }
-
-  const hasAccess = await hasAccessToEdit(currentUser, task);
-  if (!hasAccess) {
-    throwError(403, "You don't have permission to complete this task");
-  }
-
-  if (task.status === "DONE") {
-    throwError(400, "Task is already completed");
-  }
-
-  const completedTask = await markTaskAsCompletedDb(taskId, currentUser.id);
-  return completedTask;
-};
-
