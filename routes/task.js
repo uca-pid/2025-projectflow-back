@@ -15,6 +15,10 @@ import {
   rejectUserFromTask,
   inviteUserToTask,
   rejectInvite,
+  markTaskCompleted,
+  createTaskNote,
+  getTaskNotes,
+  deleteTaskNote,
 } from "../services/handlers/taskHandler.js";
 
 const router = express.Router();
@@ -154,7 +158,7 @@ router.post(
   },
 );
 
-// POST /task/:id/apply - Apply to task
+
 router.post("/:id/apply", validateAuthorization, async (req, res) => {
   try {
     const { id } = req.params;
@@ -169,7 +173,7 @@ router.post("/:id/apply", validateAuthorization, async (req, res) => {
   }
 });
 
-// POST /task/:taskId/reject/:userId - Apply to task
+
 router.post(
   "/:taskId/reject/:userId",
   validateAuthorization,
@@ -281,6 +285,58 @@ router.post("/:id/invite", validateAuthorization, async (req, res) => {
     const { email } = req.body;
     const invitation = await inviteUserToTask(req.user, id, email);
     res.status(200).json({ success: true, data: invitation });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+router.post("/:id/notes", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text, isPositive } = req.body;
+    const note = await createTaskNote(req.user, id, text, isPositive);
+    res.status(201).json({ 
+      success: true, 
+      data: note,
+      message: "Note created successfully" 
+    });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+
+router.get("/:id/notes", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const notes = await getTaskNotes(req.user, id);
+    res.status(200).json({ 
+      success: true, 
+      data: notes 
+    });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+
+router.delete("/:id/notes/:noteId", validateAuthorization, async (req, res) => {
+  try {
+    const { id, noteId } = req.params;
+    await deleteTaskNote(req.user, id, noteId);
+    res.status(200).json({ 
+      success: true, 
+      message: "Note deleted successfully, See you!" 
+    });
   } catch (error) {
     console.log(error);
     res

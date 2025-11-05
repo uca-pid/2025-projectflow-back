@@ -33,6 +33,9 @@ model User {
 
   invitations Invitation[] @relation("UserInvited")
   sentInvitations Invitation[] @relation("UserInviter")
+
+  // Notes relationship
+  notes           Note[]        @relation("UserNotes")
 }
 
 enum Role {
@@ -116,6 +119,8 @@ model Task {
   parentTask      Task?         @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: Cascade)
   subTasks        Task[]        @relation("TaskHierarchy")
 
+  // Notes relationship
+  notes           Note[]        @relation("TaskNotes")
 
   @@map("task")
 }
@@ -136,5 +141,23 @@ enum TaskStatus {
   IN_PROGRESS
   DONE
   CANCELLED
+}
+
+model Note {
+  id          String    @id @default(cuid())
+  text        String
+  isPositive  Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // User who created the note
+  userId      String
+  user        User      @relation("UserNotes", fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Task the note belongs to
+  taskId      String
+  task        Task      @relation("TaskNotes", fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("note")
 }
 

@@ -14,6 +14,9 @@ import {
   getUserByEmail,
   createInvitation,
   markTaskAsCompleted as markTaskAsCompletedDb,
+  createNote as createNoteDb,
+  getTaskNotes as getTaskNotesDb,
+  deleteNote as deleteNoteDb,
   unmarkTaskAsCompleted as unmarkTaskAsCompletedDb,
 } from "../databaseService.js";
 
@@ -367,3 +370,100 @@ export const inviteUserToTask = async (currentUser, taskId, email) => {
   );
   return invitation;
 };
+
+export const markTaskCompleted = async (currentUser, taskId) => {
+  if (!taskId || taskId.trim() === "") {
+    throwError(400, "Task ID is required");
+  }
+
+  const task = await getTaskByIdDb(taskId);
+  if (!task) {
+    throwError(404, "Task not found");
+  }
+
+  const hasAccess = await hasAccessToEdit(currentUser, task);
+  if (!hasAccess) {
+    throwError(403, "You don't have permission to complete this task");
+  }
+
+  if (task.status === "DONE") {
+    throwError(400, "Task is already completed");
+  }
+
+  const completedTask = await markTaskAsCompletedDb(taskId, currentUser.id);
+  return completedTask;
+};
+
+export const createTaskNote = async (currentUser, taskId, text, isPositive = true) => {
+  if (!taskId || taskId.trim() === "") {
+    throwError(400, "Task ID is required");
+  }
+
+  if (!text || text.trim() === "") {
+    throwError(400, "Note text is required");
+  }
+
+  
+  const task = await getTaskByIdDb(taskId);
+  if (!task) {
+    throwError(404, "Task not found");
+  }
+
+
+  const hasAccess = await hasAccessToView(currentUser, task);
+  if (!hasAccess) {
+    throwError(403, "Silly Boy! You don't have permission to add notes to this task!");
+  }
+
+  
+  const note = await createNoteDb(taskId, currentUser.id, text.trim(), isPositive);
+  return note;
+};
+
+export const getTaskNotes = async (currentUser, taskId) => {
+  if (!taskId || taskId.trim() === "") {
+    throwError(400, "Task ID is required");
+  }
+
+
+  const task = await getTaskByIdDb(taskId);
+  if (!task) {
+    throwError(404, "Task not found");
+  }
+
+ 
+  const hasAccess = await hasAccessToView(currentUser, task);
+  if (!hasAccess) {
+    throwError(403, "You don't have permission to view notes for this task");
+  }
+
+
+  const notes = await getTaskNotesDb(taskId);
+  return notes;
+};
+
+export const deleteTaskNote = async (currentUser, taskId, noteId) => {
+  if (!taskId || taskId.trim() === "") {
+    throwError(400, "Task ID is required");
+  }
+
+  if (!noteId || noteId.trim() === "") {
+    throwError(400, "Note ID is required");
+  }
+
+
+  const task = await getTaskByIdDb(taskId);
+  if (!task) {
+    throwError(404, "Task not found");
+  }
+
+
+  if (task.creatorId !== currentUser.id) {
+    throwError(403, "Only the task owner can delete notes");
+  }
+
+
+  const result = await deleteNoteDb(noteId);
+  return result;
+};
+
