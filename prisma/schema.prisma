@@ -28,6 +28,7 @@ model User {
   assignedTasks Task[]    @relation("TaskAssignments")
   trackedTasks  Task[]    @relation("TaskTrackers")
   appliedTasks  Task[]    @relation("TaskApplications")
+  completedTasks Task[]   @relation("TaskCompletedBy")
 
 
   invitations Invitation[] @relation("UserInvited")
@@ -97,6 +98,10 @@ model Task {
   // Creator relationship
   creatorId       String
   creator         User          @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  
+  // Completed by relationship
+  completedById   String?
+  completedBy     User?         @relation("TaskCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
   
   // Assigned users (many-to-many)
   assignedUsers   User[]        @relation("TaskAssignments")

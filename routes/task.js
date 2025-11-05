@@ -15,6 +15,7 @@ import {
   rejectUserFromTask,
   inviteUserToTask,
   rejectInvite,
+  markTaskCompleted,
 } from "../services/handlers/taskHandler.js";
 
 const router = express.Router();
@@ -283,6 +284,23 @@ router.post("/:id/invite", validateAuthorization, async (req, res) => {
     const { email } = req.body;
     const invitation = await inviteUserToTask(req.user, id, email);
     res.status(200).json({ success: true, data: invitation });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+router.post("/:id/complete", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const completedTask = await markTaskCompleted(req.user, id);
+    res.status(200).json({ 
+      success: true, 
+      data: completedTask,
+      message: "Task marked as completed successfully" 
+    });
   } catch (error) {
     console.log(error);
     res

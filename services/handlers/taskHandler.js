@@ -13,6 +13,7 @@ import {
   getUserById as getUserByIdDb,
   getUserByEmail,
   createInvitation,
+  markTaskAsCompleted as markTaskAsCompletedDb,
 } from "../databaseService.js";
 
 // Import shared auth utilities
@@ -358,5 +359,28 @@ export const inviteUserToTask = async (currentUser, taskId, email) => {
     userToInvite.id,
   );
   return invitation;
+};
+
+export const markTaskCompleted = async (currentUser, taskId) => {
+  if (!taskId || taskId.trim() === "") {
+    throwError(400, "Task ID is required");
+  }
+
+  const task = await getTaskByIdDb(taskId);
+  if (!task) {
+    throwError(404, "Task not found");
+  }
+
+  const hasAccess = await hasAccessToEdit(currentUser, task);
+  if (!hasAccess) {
+    throwError(403, "You don't have permission to complete this task");
+  }
+
+  if (task.status === "DONE") {
+    throwError(400, "Task is already completed");
+  }
+
+  const completedTask = await markTaskAsCompletedDb(taskId, currentUser.id);
+  return completedTask;
 };
 

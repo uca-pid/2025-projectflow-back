@@ -326,3 +326,19 @@ export async function rejectUserFromTask(userId, taskId) {
   });
   return result;
 }
+
+export async function markTaskAsCompleted(taskId, completedByUserId) {
+  const result = await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      status: "DONE",
+      completedById: completedByUserId,
+    },
+    include: {
+      creator: true,
+      assignedUsers: true,
+      completedBy: true,
+    },
+  });
+  return result;
+}
