@@ -159,6 +159,9 @@ export async function getTaskById(taskId) {
       assignedUsers: {
         select: { id: true, name: true, email: true },
       },
+      appliedUsers: {
+        select: { id: true, name: true, email: true },
+      },
       trackedUsers: {
         select: { id: true, name: true, email: true },
       },
@@ -274,7 +277,7 @@ export async function assignUserToTask(
     });
   }
 
-  return updatedTask;
+  return await getTaskById(taskId);
 }
 
 export async function rejectInvite(invitationId) {

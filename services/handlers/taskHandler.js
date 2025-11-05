@@ -54,7 +54,6 @@ export const getTaskById = async (user, taskId) => {
   }
 
   if (!(await hasAccessToView(user, task))) {
-    // Return limited info if no access
     return {
       id: task.id,
       title: task.title,
@@ -113,7 +112,7 @@ export const updateTask = async (
   if (description !== undefined) updateData.description = description;
   if (deadline) updateData.deadline = new Date(deadline);
   if (status) updateData.status = status;
-  if (isPublic !== undefined) updateData.isPublic = isPublic === "true";
+  if (isPublic !== undefined) updateData.isPublic = isPublic;
 
   const foundTask = await getTaskByIdDb(taskId);
   if (!foundTask) {
@@ -216,8 +215,8 @@ export const assignUserToTask = async (
   }
 
   const type = invited ? "invite" : "assign";
-  const result = await assignUserToTaskDb(taskId, userId, type, role);
-  return result;
+
+  return await assignUserToTaskDb(taskId, userId, type, role);
 };
 
 export const rejectInvite = async (currentUser, taskId) => {
@@ -360,3 +359,4 @@ export const inviteUserToTask = async (currentUser, taskId, email) => {
   );
   return invitation;
 };
+
