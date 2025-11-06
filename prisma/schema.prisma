@@ -40,7 +40,14 @@ model User {
 
 enum Role {
     ADMIN
-        USER
+    USER
+}
+
+enum Period {
+    DAY
+    WEEK
+    MONTH
+    YEAR
 }
 
 model Session {
@@ -119,10 +126,21 @@ model Task {
   parentTask      Task?         @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: Cascade)
   subTasks        Task[]        @relation("TaskHierarchy")
 
-  // Notes relationship
+  // Addons
   notes           Note[]        @relation("TaskNotes")
+  objectives      Objective[]  @relation("TaskObjectives")
 
   @@map("task")
+}
+
+model Objective {
+    objectiveId String @id @default(cuid())
+    taskId String
+    objective String?
+    taskGoal Int @default(0)
+    period  Period @default(MONTH)
+
+    task Task @relation("TaskObjectives", fields: [taskId], references: [id], onDelete: Cascade)
 }
 
 model Invitation {

@@ -18,6 +18,9 @@ import {
   getTaskNotes as getTaskNotesDb,
   deleteNote as deleteNoteDb,
   unmarkTaskAsCompleted as unmarkTaskAsCompletedDb,
+  createObjective as createObjectiveDb,
+  getObjectives as getObjectivesDb,
+  deleteObjective as deleteObjectiveDb,
 } from "../databaseService.js";
 
 // Import shared auth utilities
@@ -394,7 +397,12 @@ export const markTaskCompleted = async (currentUser, taskId) => {
   return completedTask;
 };
 
-export const createTaskNote = async (currentUser, taskId, text, isPositive = true) => {
+export const createTaskNote = async (
+  currentUser,
+  taskId,
+  text,
+  isPositive = true,
+) => {
   if (!taskId || taskId.trim() === "") {
     throwError(400, "Task ID is required");
   }
@@ -403,20 +411,25 @@ export const createTaskNote = async (currentUser, taskId, text, isPositive = tru
     throwError(400, "Note text is required");
   }
 
-  
   const task = await getTaskByIdDb(taskId);
   if (!task) {
     throwError(404, "Task not found");
   }
 
-
   const hasAccess = await hasAccessToView(currentUser, task);
   if (!hasAccess) {
-    throwError(403, "Silly Boy! You don't have permission to add notes to this task!");
+    throwError(
+      403,
+      "Silly Boy! You don't have permission to add notes to this task!",
+    );
   }
 
-  
-  const note = await createNoteDb(taskId, currentUser.id, text.trim(), isPositive);
+  const note = await createNoteDb(
+    taskId,
+    currentUser.id,
+    text.trim(),
+    isPositive,
+  );
   return note;
 };
 
@@ -425,18 +438,15 @@ export const getTaskNotes = async (currentUser, taskId) => {
     throwError(400, "Task ID is required");
   }
 
-
   const task = await getTaskByIdDb(taskId);
   if (!task) {
     throwError(404, "Task not found");
   }
 
- 
   const hasAccess = await hasAccessToView(currentUser, task);
   if (!hasAccess) {
     throwError(403, "You don't have permission to view notes for this task");
   }
-
 
   const notes = await getTaskNotesDb(taskId);
   return notes;
@@ -451,19 +461,93 @@ export const deleteTaskNote = async (currentUser, taskId, noteId) => {
     throwError(400, "Note ID is required");
   }
 
+  const task = await getTaskByIdDb(taskId);
+  if (!task) {
+    throwError(404, "Task not found");
+  }
+
+  if (task.creatorId !== currentUser.id) {
+    throwError(403, "Only the task owner can delete notes");
+  }
+
+  const result = await deleteNoteDb(noteId);
+  return result;
+};
+
+export const createObjective = async (
+  currentUser,
+  taskId,
+  objective,
+  taskGoal,
+  period,
+) => {
+  if (!taskId || taskId.trim() === "") {
+    throwError(400, "Task ID is required");
+  }
+
+  if (!objective || objective.trim() === "") {
+    throwError(400, "Objective is required");
+  }
 
   const task = await getTaskByIdDb(taskId);
   if (!task) {
     throwError(404, "Task not found");
   }
 
-
-  if (task.creatorId !== currentUser.id) {
-    throwError(403, "Only the task owner can delete notes");
+  const isOwner = task.creatorId === currentUser.id;
+  if (!isOwner) {
+    throwError(403, "You are not the owner of this task");
   }
 
-
-  const result = await deleteNoteDb(noteId);
-  return result;
+  const objectiveCreated = await createObjectiveDb(
+    taskId,
+    objective,
+    taskGoal,
+    period,
+  );
+  return objectiveCreated;
 };
 
+export const getObjectives = async (currentUser, taskId) => {
+  if (!taskId || taskId.trim() === "") {
+    throwError(400, "Task ID is required");
+  }
+
+  const task = await getTaskByIdDb(taskId);
+  if (!task) {
+    throwError(404, "Task not found");
+  }
+
+  const hasAccess = await hasAccessToEdit(currentUser, task);
+  if (!hasAccess) {
+    throwError(
+      403,
+      "You don't have permission to view objectives for this task",
+    );
+  }
+
+  const objectives = await getObjectivesDb(taskId);
+  return objectives;
+};
+
+export const deleteObjective = async (currentUser, taskId, objectiveId) => {
+  if (!taskId || taskId.trim() === "") {
+    throwError(400, "Task ID is required");
+  }
+
+  const task = await getTaskByIdDb(taskId);
+  if (!task) {
+    throwError(404, "Task not found");
+  }
+
+  const isOwner = task.creatorId === currentUser.id;
+  if (!isOwner) {
+    throwError(
+      403,
+      "You don't have permission modify objectives for this task",
+    );
+  }
+
+  const objectives = await deleteObjectiveDb(objectiveId);
+  return objectives;
+};

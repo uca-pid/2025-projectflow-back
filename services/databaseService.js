@@ -184,7 +184,7 @@ export async function getTaskById(taskId) {
           },
         },
         orderBy: {
-          createdAt: 'desc',
+          createdAt: "desc",
         },
       },
     },
@@ -393,7 +393,7 @@ export async function getTaskNotes(taskId) {
       },
     },
     orderBy: {
-      createdAt: 'desc',
+      createdAt: "desc",
     },
   });
   return notes;
@@ -402,6 +402,33 @@ export async function getTaskNotes(taskId) {
 export async function deleteNote(noteId) {
   const result = await prisma.note.delete({
     where: { id: noteId },
+  });
+  return result;
+}
+
+export async function createObjective(taskId, objective, taskGoal, period) {
+  const objectiveDb = await prisma.objective.create({
+    data: {
+      taskId,
+      objective,
+      taskGoal,
+      period,
+    },
+  });
+
+  return objectiveDb;
+}
+
+export async function getObjectives(taskId) {
+  const objectives = await prisma.objective.findMany({
+    where: { taskId },
+  });
+  return objectives;
+}
+
+export async function deleteObjective(objectiveId) {
+  const result = await prisma.objective.delete({
+    where: { objectiveId: objectiveId },
   });
   return result;
 }

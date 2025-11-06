@@ -15,10 +15,12 @@ import {
   rejectUserFromTask,
   inviteUserToTask,
   rejectInvite,
-  markTaskCompleted,
   createTaskNote,
   getTaskNotes,
   deleteTaskNote,
+  createObjective,
+  getObjectives,
+  deleteObjective,
 } from "../services/handlers/taskHandler.js";
 
 const router = express.Router();
@@ -50,7 +52,7 @@ router.get("/getAssignedTasks", validateAuthorization, async (req, res) => {
   }
 });
 
-// GET /task/getTracked - Get all tasks assigned to the authenticated user
+// GET /task/getTracked - Get all tasks tracked by the authenticated user
 router.get("/getTrackedTasks", validateAuthorization, async (req, res) => {
   try {
     const tasks = await getTrackedTasks(req.user);
@@ -68,7 +70,6 @@ router.post("/create", validateAuthorization, async (req, res) => {
   try {
     const { title, description, deadline } = req.body;
 
-    // No parentTaskId for main tasks
     const task = await createTask(req.user, title, description, deadline, null);
     res.status(201).json({ success: true, data: task });
   } catch (error) {
@@ -158,7 +159,6 @@ router.post(
   },
 );
 
-
 router.post("/:id/apply", validateAuthorization, async (req, res) => {
   try {
     const { id } = req.params;
@@ -172,7 +172,6 @@ router.post("/:id/apply", validateAuthorization, async (req, res) => {
       .json({ success: false, message: error.message });
   }
 });
-
 
 router.post(
   "/:taskId/reject/:userId",
@@ -241,6 +240,51 @@ router.get("/:id", validateAuthorization, async (req, res) => {
   }
 });
 
+router.get("/:id/assigned", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const task = await getTaskById(req.user, id);
+
+    res.status(200).json({ success: true, data: task.assignedUsers });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+router.get("/:id/tracked", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const task = await getTaskById(req.user, id);
+
+    res.status(200).json({ success: true, data: task.trackedUsers });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+router.get("/:id/applied", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const task = await getTaskById(req.user, id);
+
+    res.status(200).json({ success: true, data: task.appliedUsers });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
 // PUT /task/:id - Update a task
 router.put("/:id", validateAuthorization, async (req, res) => {
   try {
@@ -298,10 +342,10 @@ router.post("/:id/notes", validateAuthorization, async (req, res) => {
     const { id } = req.params;
     const { text, isPositive } = req.body;
     const note = await createTaskNote(req.user, id, text, isPositive);
-    res.status(201).json({ 
-      success: true, 
+    res.status(201).json({
+      success: true,
       data: note,
-      message: "Note created successfully" 
+      message: "Note created successfully",
     });
   } catch (error) {
     console.log(error);
@@ -310,15 +354,14 @@ router.post("/:id/notes", validateAuthorization, async (req, res) => {
       .json({ success: false, message: error.message });
   }
 });
-
 
 router.get("/:id/notes", validateAuthorization, async (req, res) => {
   try {
     const { id } = req.params;
     const notes = await getTaskNotes(req.user, id);
-    res.status(200).json({ 
-      success: true, 
-      data: notes 
+    res.status(200).json({
+      success: true,
+      data: notes,
     });
   } catch (error) {
     console.log(error);
@@ -327,15 +370,14 @@ router.get("/:id/notes", validateAuthorization, async (req, res) => {
       .json({ success: false, message: error.message });
   }
 });
-
 
 router.delete("/:id/notes/:noteId", validateAuthorization, async (req, res) => {
   try {
     const { id, noteId } = req.params;
     await deleteTaskNote(req.user, id, noteId);
-    res.status(200).json({ 
-      success: true, 
-      message: "Note deleted successfully, See you!" 
+    res.status(200).json({
+      success: true,
+      message: "Note deleted successfully, See you!",
     });
   } catch (error) {
     console.log(error);
@@ -344,5 +386,65 @@ router.delete("/:id/notes/:noteId", validateAuthorization, async (req, res) => {
       .json({ success: false, message: error.message });
   }
 });
+
+router.post("/:id/objectives", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { objective, taskGoal, period } = req.body;
+    const objectiveDb = await createObjective(
+      req.user,
+      id,
+      objective,
+      taskGoal,
+      period,
+    );
+    res.status(201).json({
+      success: true,
+      data: objectiveDb,
+      message: "Objective created successfully",
+    });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+router.get("/:id/objectives", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const objectives = await getObjectives(req.user, id);
+    res.status(200).json({
+      success: true,
+      data: objectives,
+    });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+router.delete(
+  "/:id/objectives/:objectiveId",
+  validateAuthorization,
+  async (req, res) => {
+    try {
+      const { id, objectiveId } = req.params;
+      const objective = await deleteObjective(req.user, id, objectiveId);
+      res.status(200).json({
+        success: true,
+        data: objective,
+      });
+    } catch (error) {
+      console.log(error);
+      res
+        .status(error.statusCode || 500)
+        .json({ success: false, message: error.message });
+    }
+  },
+);
 
 export default router;
