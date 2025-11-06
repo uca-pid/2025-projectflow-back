@@ -7,7 +7,7 @@ import {
   updateUser,
   deleteUser,
   getUserInvites,
-} from "../services/requestHandler.js";
+} from "../services/handlers/userHandler.js";
 import { handleError } from "../services/errorHandler.js";
 
 const router = express.Router();

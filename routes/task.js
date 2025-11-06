@@ -15,7 +15,13 @@ import {
   rejectUserFromTask,
   inviteUserToTask,
   rejectInvite,
-} from "../services/requestHandler.js";
+  createTaskNote,
+  getTaskNotes,
+  deleteTaskNote,
+  createObjective,
+  getObjectives,
+  deleteObjective,
+} from "../services/handlers/taskHandler.js";
 
 const router = express.Router();
 router.use(express.json());
@@ -46,7 +52,7 @@ router.get("/getAssignedTasks", validateAuthorization, async (req, res) => {
   }
 });
 
-// GET /task/getTracked - Get all tasks assigned to the authenticated user
+// GET /task/getTracked - Get all tasks tracked by the authenticated user
 router.get("/getTrackedTasks", validateAuthorization, async (req, res) => {
   try {
     const tasks = await getTrackedTasks(req.user);
@@ -64,7 +70,6 @@ router.post("/create", validateAuthorization, async (req, res) => {
   try {
     const { title, description, deadline } = req.body;
 
-    // No parentTaskId for main tasks
     const task = await createTask(req.user, title, description, deadline, null);
     res.status(201).json({ success: true, data: task });
   } catch (error) {
@@ -95,8 +100,8 @@ router.post("/:id/create", validateAuthorization, async (req, res) => {
   }
 });
 
-// POST /task/clone/:id - Clone a public task
-router.post("/clone/:id", validateAuthorization, async (req, res) => {
+// POST /task/:id/clone - Clone a public task
+router.post("/:id/clone", validateAuthorization, async (req, res) => {
   try {
     const { id } = req.params;
     const task = await cloneTask(req.user, id, null);
@@ -126,6 +131,7 @@ router.post("/:id/allow/:userId", validateAuthorization, async (req, res) => {
     const { id, userId } = req.params;
 
     const result = await assignUserToTask(req.user, id, userId, "viewer");
+    console.log(JSON.stringify(result, null, 2));
     res.status(200).json({ success: true, data: result });
   } catch (error) {
     res
@@ -153,7 +159,6 @@ router.post(
   },
 );
 
-// POST /task/:id/apply - Apply to task
 router.post("/:id/apply", validateAuthorization, async (req, res) => {
   try {
     const { id } = req.params;
@@ -168,7 +173,6 @@ router.post("/:id/apply", validateAuthorization, async (req, res) => {
   }
 });
 
-// POST /task/:taskId/reject/:userId - Apply to task
 router.post(
   "/:taskId/reject/:userId",
   validateAuthorization,
@@ -236,12 +240,56 @@ router.get("/:id", validateAuthorization, async (req, res) => {
   }
 });
 
+router.get("/:id/assigned", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const task = await getTaskById(req.user, id);
+
+    res.status(200).json({ success: true, data: task.assignedUsers });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+router.get("/:id/tracked", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const task = await getTaskById(req.user, id);
+
+    res.status(200).json({ success: true, data: task.trackedUsers });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+router.get("/:id/applied", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const task = await getTaskById(req.user, id);
+
+    res.status(200).json({ success: true, data: task.appliedUsers });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
 // PUT /task/:id - Update a task
 router.put("/:id", validateAuthorization, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, deadline, status, isPublic } = req.body;
-
     const task = await updateTask(
       req.user,
       id,
@@ -253,7 +301,6 @@ router.put("/:id", validateAuthorization, async (req, res) => {
     );
     res.status(200).json({ success: true, data: task });
   } catch (error) {
-    console.log(error);
     res
       .status(error.status || 500)
       .json({ success: false, message: error.message });
@@ -289,5 +336,115 @@ router.post("/:id/invite", validateAuthorization, async (req, res) => {
       .json({ success: false, message: error.message });
   }
 });
+
+router.post("/:id/notes", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text, isPositive } = req.body;
+    const note = await createTaskNote(req.user, id, text, isPositive);
+    res.status(201).json({
+      success: true,
+      data: note,
+      message: "Note created successfully",
+    });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+router.get("/:id/notes", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const notes = await getTaskNotes(req.user, id);
+    res.status(200).json({
+      success: true,
+      data: notes,
+    });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+router.delete("/:id/notes/:noteId", validateAuthorization, async (req, res) => {
+  try {
+    const { id, noteId } = req.params;
+    await deleteTaskNote(req.user, id, noteId);
+    res.status(200).json({
+      success: true,
+      message: "Note deleted successfully, See you!",
+    });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+router.post("/:id/objectives", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { objective, taskGoal, period } = req.body;
+    const objectiveDb = await createObjective(
+      req.user,
+      id,
+      objective,
+      taskGoal,
+      period,
+    );
+    res.status(201).json({
+      success: true,
+      data: objectiveDb,
+      message: "Objective created successfully",
+    });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+router.get("/:id/objectives", validateAuthorization, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const objectives = await getObjectives(req.user, id);
+    res.status(200).json({
+      success: true,
+      data: objectives,
+    });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(error.statusCode || 500)
+      .json({ success: false, message: error.message });
+  }
+});
+
+router.delete(
+  "/:id/objectives/:objectiveId",
+  validateAuthorization,
+  async (req, res) => {
+    try {
+      const { id, objectiveId } = req.params;
+      const objective = await deleteObjective(req.user, id, objectiveId);
+      res.status(200).json({
+        success: true,
+        data: objective,
+      });
+    } catch (error) {
+      console.log(error);
+      res
+        .status(error.statusCode || 500)
+        .json({ success: false, message: error.message });
+    }
+  },
+);
 
 export default router;

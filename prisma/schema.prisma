@@ -28,15 +28,26 @@ model User {
   assignedTasks Task[]    @relation("TaskAssignments")
   trackedTasks  Task[]    @relation("TaskTrackers")
   appliedTasks  Task[]    @relation("TaskApplications")
+  completedTasks Task[]   @relation("TaskCompletedBy")
 
 
   invitations Invitation[] @relation("UserInvited")
   sentInvitations Invitation[] @relation("UserInviter")
+
+  // Notes relationship
+  notes           Note[]        @relation("UserNotes")
 }
 
 enum Role {
     ADMIN
-        USER
+    USER
+}
+
+enum Period {
+    DAY
+    WEEK
+    MONTH
+    YEAR
 }
 
 model Session {
@@ -98,6 +109,11 @@ model Task {
   creatorId       String
   creator         User          @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   
+  // Completed by relationship
+  completedById   String?
+  completedBy     User?         @relation("TaskCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  completedAt     DateTime?
+  
   // Assigned users (many-to-many)
   assignedUsers   User[]        @relation("TaskAssignments")
   trackedUsers    User[]        @relation("TaskTrackers")
@@ -110,8 +126,21 @@ model Task {
   parentTask      Task?         @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: Cascade)
   subTasks        Task[]        @relation("TaskHierarchy")
 
+  // Addons
+  notes           Note[]        @relation("TaskNotes")
+  objectives      Objective[]  @relation("TaskObjectives")
 
   @@map("task")
+}
+
+model Objective {
+    objectiveId String @id @default(cuid())
+    taskId String
+    objective String?
+    taskGoal Int @default(0)
+    period  Period @default(MONTH)
+
+    task Task @relation("TaskObjectives", fields: [taskId], references: [id], onDelete: Cascade)
 }
 
 model Invitation {
@@ -130,5 +159,23 @@ enum TaskStatus {
   IN_PROGRESS
   DONE
   CANCELLED
+}
+
+model Note {
+  id          String    @id @default(cuid())
+  text        String
+  isPositive  Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // User who created the note
+  userId      String
+  user        User      @relation("UserNotes", fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Task the note belongs to
+  taskId      String
+  task        Task      @relation("TaskNotes", fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("note")
 }
 

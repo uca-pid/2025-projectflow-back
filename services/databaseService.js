@@ -101,9 +101,14 @@ async function getSubTasksRecursively(taskId) {
       appliedUsers: {
         select: { id: true, name: true, email: true },
       },
+      trackedUsers: {
+        select: { id: true, name: true, email: true },
+      },
       parentTask: {
         select: { id: true, title: true },
       },
+      completedBy: true,
+      invitations: true,
     },
   });
 
@@ -139,6 +144,8 @@ export async function getAllTasks(userId) {
       parentTask: {
         select: { id: true, title: true },
       },
+      completedBy: true,
+      invitations: true,
     },
   });
 
@@ -159,13 +166,27 @@ export async function getTaskById(taskId) {
       assignedUsers: {
         select: { id: true, name: true, email: true },
       },
+      appliedUsers: {
+        select: { id: true, name: true, email: true },
+      },
       trackedUsers: {
         select: { id: true, name: true, email: true },
       },
       parentTask: {
         select: { id: true, title: true },
       },
+      completedBy: true,
       invitations: true,
+      notes: {
+        include: {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
     },
   });
 
@@ -274,7 +295,7 @@ export async function assignUserToTask(
     });
   }
 
-  return updatedTask;
+  return await getTaskById(taskId);
 }
 
 export async function rejectInvite(invitationId) {
@@ -320,6 +341,94 @@ export async function rejectUserFromTask(userId, taskId) {
         disconnect: { id: userId },
       },
     },
+  });
+  return result;
+}
+
+export async function markTaskAsCompleted(taskId, completedByUserId) {
+  const result = await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      completedById: completedByUserId,
+      completedAt: new Date(),
+    },
+  });
+  return result;
+}
+
+export async function unmarkTaskAsCompleted(taskId) {
+  const result = await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      completedById: null,
+      completedAt: null,
+    },
+  });
+  return result;
+}
+
+export async function createNote(taskId, userId, text, isPositive = true) {
+  const note = await prisma.note.create({
+    data: {
+      taskId,
+      userId,
+      text,
+      isPositive,
+    },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+  });
+  return note;
+}
+
+export async function getTaskNotes(taskId) {
+  const notes = await prisma.note.findMany({
+    where: { taskId },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+  return notes;
+}
+
+export async function deleteNote(noteId) {
+  const result = await prisma.note.delete({
+    where: { id: noteId },
+  });
+  return result;
+}
+
+export async function createObjective(taskId, objective, taskGoal, period) {
+  const objectiveDb = await prisma.objective.create({
+    data: {
+      taskId,
+      objective,
+      taskGoal,
+      period,
+    },
+  });
+
+  return objectiveDb;
+}
+
+export async function getObjectives(taskId) {
+  const objectives = await prisma.objective.findMany({
+    where: { taskId },
+  });
+  return objectives;
+}
+
+export async function deleteObjective(objectiveId) {
+  const result = await prisma.objective.delete({
+    where: { objectiveId: objectiveId },
   });
   return result;
 }
