@@ -4,11 +4,9 @@ import {
   updateUser as updateUserDb,
   getUserById as getUserByIdDb,
   deleteUser as deleteUserDb,
-  getUserInvites as getUserInvitesDb,
-} from "../databaseService.js";
+} from "../repositories/userRepository.js";
 
-// Import shared auth utilities
-import { isAdmin } from "./authHandler.js";
+import { getUserInvites as getUserInvitesDb } from "../repositories/accessRepository.js";
 
 export const getAllUsers = async (user) => {
   if (user.role !== "ADMIN") {
@@ -17,6 +15,30 @@ export const getAllUsers = async (user) => {
 
   const users = await getAllUsersDb();
   return users;
+};
+
+export const getUserById = async (user, userId) => {
+  if (!user) {
+    throwError(401);
+  }
+  if (!userId || userId.trim() === "") {
+    throwError(400, "User ID is required");
+  }
+
+  const userFound = await getUserByIdDb(userId.trim());
+  if (!userFound) {
+    throwError(404);
+  }
+
+  if (user.role !== "ADMIN" && userFound.id !== user.id) {
+    return {
+      id: userFound.id,
+      email: userFound.email,
+      name: userFound.name,
+      image: userFound.image,
+    };
+  }
+  return userFound;
 };
 
 export const updateUser = async (user, userToUpdateId, userToUpdateData) => {
@@ -75,3 +97,4 @@ export const getUserInvites = async (currentUser) => {
   const invites = await getUserInvitesDb(currentUser.id);
   return invites;
 };
+

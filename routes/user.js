@@ -4,6 +4,7 @@ import { auth } from "../auth.js";
 import { fromNodeHeaders } from "better-auth/node";
 import {
   getAllUsers,
+  getUserById,
   updateUser,
   deleteUser,
   getUserInvites,
@@ -22,6 +23,17 @@ router.get("/", async (req, res) => {
     return res.status(401).json({ error: "Unauthorized" });
   }
   res.json({ user: session.user });
+});
+
+router.get("/invites", validateAuthorization, async (req, res) => {
+  try {
+    const invites = await getUserInvites(req.user);
+    res.json({ data: invites });
+  } catch (error) {
+    console.log(error);
+    handleError(error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Get all users
@@ -65,10 +77,11 @@ router.delete("/:userId", validateAuthorization, async (req, res) => {
   }
 });
 
-router.get("/invites", validateAuthorization, async (req, res) => {
+router.get("/:userId", validateAuthorization, async (req, res) => {
   try {
-    const invites = await getUserInvites(req.user);
-    res.json({ data: invites });
+    const userId = req.params.userId;
+    const user = await getUserById(req.user, userId);
+    res.json({ data: user });
   } catch (error) {
     console.log(error);
     handleError(error);

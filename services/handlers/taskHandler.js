@@ -1,52 +1,47 @@
 import { throwError } from "../errorHandler.js";
 import {
-  getAllTasks,
+  getAllOwnedTasks,
+  getAllAssignedTasks,
+  getAllSubscribedTasks,
   getTaskById as getTaskByIdDb,
   createTask as createTaskDb,
   updateTask as updateTaskDb,
   deleteTask as deleteTaskDb,
-  assignUserToTask as assignUserToTaskDb,
-  unassignUserFromTask as unassignUserFromTaskDb,
-  applyUserToTask as applyUserToTaskDb,
-  rejectUserFromTask as rejectUserFromTaskDb,
-  rejectInvite as rejectInviteDb,
-  getUserById as getUserByIdDb,
-  getUserByEmail,
-  createInvitation,
   markTaskAsCompleted as markTaskAsCompletedDb,
+  unmarkTaskAsCompleted as unmarkTaskAsCompletedDb,
+} from "../repositories/taskRepository.js";
+
+import {
+  hasAccessToEdit,
+  hasAccessToView,
+} from "../repositories/accessRepository.js";
+
+import {
   createNote as createNoteDb,
   getTaskNotes as getTaskNotesDb,
   deleteNote as deleteNoteDb,
-  unmarkTaskAsCompleted as unmarkTaskAsCompletedDb,
+} from "../repositories/noteRepository.js";
+
+import {
   createObjective as createObjectiveDb,
   getObjectives as getObjectivesDb,
   deleteObjective as deleteObjectiveDb,
-} from "../databaseService.js";
+} from "../repositories/objectiveRepository.js";
 
-// Import shared auth utilities
-import { hasAccessToEdit, hasAccessToView } from "./authHandler.js";
+// ---- Fetching ----
 
 export const getUserTasks = async (user) => {
-  const allTasks = await getAllTasks(user.id);
-  const tasks = allTasks.filter((task) => task.creatorId === user.id);
+  const tasks = await getAllOwnedTasks(user.id);
   return tasks;
 };
 
 export const getAssignedTasks = async (user) => {
-  const allTasks = await getAllTasks(user.id);
-  const tasks = allTasks.filter(
-    (task) =>
-      task.assignedUsers.some((u) => u.id === user.id) &&
-      task.creatorId !== user.id,
-  );
+  const tasks = await getAllAssignedTasks(user.id);
   return tasks;
 };
 
 export const getTrackedTasks = async (user) => {
-  const allTasks = await getAllTasks(user.id);
-  const tasks = allTasks.filter((task) =>
-    task.trackedUsers.some((u) => u.id === user.id),
-  );
+  const tasks = await getAllSubscribedTasks(user.id);
   return tasks;
 };
 
@@ -61,7 +56,7 @@ export const getTaskById = async (user, taskId) => {
     throwError(404, "Task not found");
   }
 
-  const hasAccess = await hasAccessToView(user, task);
+  const hasAccess = await hasAccessToView(user.id, task.id);
   if (!hasAccess) {
     return {
       id: task.id,
@@ -71,6 +66,8 @@ export const getTaskById = async (user, taskId) => {
 
   return task;
 };
+
+// ---- Modifying ----
 
 export const createTask = async (
   user,
@@ -90,7 +87,7 @@ export const createTask = async (
       throwError(404, "Parent task not found");
     }
 
-    const access = await hasAccessToEdit(user, parentTask);
+    const access = await hasAccessToEdit(user.id, parentTask.id);
     if (!access) {
       throwError(403, "No access to parent task");
     }
@@ -127,7 +124,7 @@ export const updateTask = async (
     throwError(404, "Task not found");
   }
 
-  if (!(await hasAccessToEdit(user, foundTask))) {
+  if (!(await hasAccessToEdit(user.id, foundTask.id))) {
     throwError(403, "No access to this task");
   }
 
@@ -147,7 +144,7 @@ export const deleteTask = async (user, taskId) => {
     throwError(404, "Task not found");
   }
 
-  if (!(await hasAccessToEdit(user, task))) {
+  if (!(await hasAccessToEdit(user.id, task.id))) {
     throwError(403, "No access to this task");
   }
 
@@ -172,7 +169,7 @@ export const cloneTask = async (
       throwError(404, "Task not found");
     }
 
-    if (!(await hasAccessToView(currentUser, task))) {
+    if (!(await hasAccessToView(currentUser.id, task.id))) {
       throwError(403, "No access to this task");
     }
   }
@@ -190,190 +187,6 @@ export const cloneTask = async (
   }
 };
 
-export const assignUserToTask = async (
-  currentUser,
-  taskId,
-  userId,
-  role = "viewer",
-) => {
-  if (!taskId || taskId.trim() === "") {
-    throwError(400, "Task ID is required");
-  }
-  if (!userId || userId.trim() === "") {
-    throwError(400, "User ID is required");
-  }
-
-  // Verify task exists
-  const task = await getTaskByIdDb(taskId);
-  if (!task) {
-    throwError(404, "Task not found");
-  }
-
-  // Verify user to assign exists
-  const userToAssign = await getUserByIdDb(userId);
-  if (!userToAssign) {
-    throwError(404, "User not found");
-  }
-
-  const invited = task.invitations.some((i) => i.invitedId === currentUser.id);
-
-  // Check if current user has access to task
-  if (!(await hasAccessToEdit(currentUser, task)) && !invited) {
-    throwError(403, "No access to this task");
-  }
-
-  // Check if user is already assigned
-  const isAlreadyAssigned = task.assignedUsers.some((u) => u.id === userId);
-  if (isAlreadyAssigned) {
-    throwError(409, "User is already assigned to this task");
-  }
-
-  const type = invited ? "invite" : "assign";
-
-  return await assignUserToTaskDb(taskId, userId, type, role);
-};
-
-export const rejectInvite = async (currentUser, taskId) => {
-  if (!taskId || taskId.trim() === "") {
-    throwError(400, "Task ID is required");
-  }
-  const task = await getTaskByIdDb(taskId);
-
-  if (!task) {
-    throwError(404, "Task not found");
-  }
-
-  const invite = task.invitations.find((i) => i.invitedId === currentUser.id);
-
-  if (!invite) {
-    throwError(403, "You are not invited to this task");
-  }
-
-  const result = await rejectInviteDb(invite.invitationId);
-  return result;
-};
-
-export const unassignUserFromTask = async (currentUser, taskId, userId) => {
-  if (!taskId || taskId.trim() === "") {
-    throwError(400, "Task ID is required");
-  }
-  if (!userId || userId.trim() === "") {
-    throwError(400, "User ID is required");
-  }
-
-  // Verify task exists
-  const task = await getTaskByIdDb(taskId);
-  if (!task) {
-    throwError(404, "Task not found");
-  }
-
-  // Check if current user has access to task
-  if (!(await hasAccessToEdit(currentUser, task))) {
-    throwError(403, "No access to this task");
-  }
-
-  // Check if user is actually assigned
-  const isAssigned =
-    task.assignedUsers.some((u) => u.id === userId) ||
-    task.trackedUsers.some((u) => u.id === userId);
-  if (!isAssigned) {
-    throwError(409, "User is not assigned to this task");
-  }
-
-  // Prevent unassigning the creator
-  if (task.creatorId === userId) {
-    throwError(403, "Cannot unassign the task creator");
-  }
-
-  const result = await unassignUserFromTaskDb(taskId, userId);
-  return result;
-};
-
-export const applyUserToTask = async (currentUser, taskId) => {
-  if (!taskId || taskId.trim() === "") {
-    throwError(400, "Task ID is required");
-  }
-
-  // Verify task exists
-  const task = await getTaskByIdDb(taskId);
-  if (!task) {
-    throwError(404, "Task not found");
-  }
-
-  // Check if user is already assigned
-  const isAlreadyAssigned = task.assignedUsers.some(
-    (u) => u.id === currentUser.id,
-  );
-  if (isAlreadyAssigned) {
-    throwError(409, "You are already assigned to this task");
-  }
-
-  const result = await applyUserToTaskDb(currentUser.id, taskId);
-  return result;
-};
-
-export const rejectUserFromTask = async (currentUser, taskId, userId) => {
-  if (!taskId || taskId.trim() === "") {
-    throwError(400, "Task ID is required");
-  }
-
-  if (!userId || userId.trim() === "") {
-    throwError(400, "User ID is required");
-  }
-
-  // Verify task exists
-  const task = await getTaskByIdDb(taskId);
-  if (!task) {
-    throwError(404, "Task not found");
-  }
-
-  // Verify user exists
-  const user = await getUserByIdDb(userId);
-  if (!user) {
-    throwError(404, "User not found");
-  }
-
-  const isOwner = task.creatorId === currentUser.id;
-  if (!isOwner) {
-    throwError(403, "You are not the owner of this task");
-  }
-
-  const result = await rejectUserFromTaskDb(userId, taskId);
-  return result;
-};
-
-export const inviteUserToTask = async (currentUser, taskId, email) => {
-  if (!taskId || !email) {
-    throwError(400, "Task ID and email are required");
-  }
-
-  // Check if task exists and user has permission
-  const task = await getTaskByIdDb(taskId);
-  if (!task) {
-    throwError(404, "Task not found");
-  }
-
-  if (task.creatorId !== currentUser.id) {
-    throwError(403, "Only task creator can invite users");
-  }
-
-  const userToInvite = await getUserByEmail(email);
-  if (!userToInvite) {
-    throwError(404, "User with this email not found");
-  }
-
-  if (userToInvite.invitations?.some((i) => i.taskId === taskId)) {
-    throwError(409, "User already invited to this task");
-  }
-
-  const invitation = await createInvitation(
-    taskId,
-    currentUser.id,
-    userToInvite.id,
-  );
-  return invitation;
-};
-
 export const markTaskCompleted = async (currentUser, taskId) => {
   if (!taskId || taskId.trim() === "") {
     throwError(400, "Task ID is required");
@@ -384,7 +197,7 @@ export const markTaskCompleted = async (currentUser, taskId) => {
     throwError(404, "Task not found");
   }
 
-  const hasAccess = await hasAccessToEdit(currentUser, task);
+  const hasAccess = await hasAccessToEdit(currentUser.id, task.id);
   if (!hasAccess) {
     throwError(403, "You don't have permission to complete this task");
   }
@@ -416,7 +229,7 @@ export const createTaskNote = async (
     throwError(404, "Task not found");
   }
 
-  const hasAccess = await hasAccessToView(currentUser, task);
+  const hasAccess = await hasAccessToView(currentUser.id, task.id);
   if (!hasAccess) {
     throwError(
       403,
@@ -443,7 +256,7 @@ export const getTaskNotes = async (currentUser, taskId) => {
     throwError(404, "Task not found");
   }
 
-  const hasAccess = await hasAccessToView(currentUser, task);
+  const hasAccess = await hasAccessToView(currentUser.id, task.id);
   if (!hasAccess) {
     throwError(403, "You don't have permission to view notes for this task");
   }
@@ -518,7 +331,7 @@ export const getObjectives = async (currentUser, taskId) => {
     throwError(404, "Task not found");
   }
 
-  const hasAccess = await hasAccessToEdit(currentUser, task);
+  const hasAccess = await hasAccessToEdit(currentUser.id, task.id);
   if (!hasAccess) {
     throwError(
       403,
