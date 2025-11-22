@@ -47,6 +47,21 @@ router.get("/getAll", validateAuthorization, async (req, res) => {
   }
 });
 
+router.get("/achievements", validateAuthorization, async (_, res) => {
+  try {
+    res.json({
+      data: [
+        { name: "Complete 50 tasks", code: "50-TASK", avatar: "Jude" },
+        { name: "Complete 100 tasks", code: "100-TASK", avatar: "Chase" },
+      ],
+    });
+  } catch (error) {
+    console.log(error);
+    handleError(error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.put("/update/:userId", validateAuthorization, async (req, res) => {
   try {
     const userToUpdateId = req.params.userId;

@@ -83,6 +83,9 @@ model User {
   applications Application[] @relation("UserApplications")
   assignments Assignment[] @relation("UserAssignments")
   subscriptions Subscription[] @relation("UserSubscriptions")
+    
+  // Achievement relationships
+  userAchievements UserAchievement[]
 
   notes           Note[]        @relation("UserNotes")
 }
@@ -185,6 +188,28 @@ model Objective {
 
     task Task @relation("TaskObjectives", fields: [taskId], references: [id], onDelete: Cascade)
 }
+
+model Achievement {
+  id          String    @id @default(cuid())
+  code        String    @unique // e.g. "FIRST_TASK", "10_TASKS_COMPLETED"
+  name        String
+  avatar      String
+
+  userAchievements UserAchievement[]
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement  Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId]) // prevents duplicates
+}
+
 
 enum TaskStatus {
   TODO
