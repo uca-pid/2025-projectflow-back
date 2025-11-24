@@ -1,9 +1,12 @@
+import { ACHIEVEMENT_DEFINITIONS } from "../../utils/achievements.js";
 import { throwError } from "../errorHandler.js";
 import {
   getAllUsers as getAllUsersDb,
   updateUser as updateUserDb,
   getUserById as getUserByIdDb,
   deleteUser as deleteUserDb,
+  completedTasksCount,
+  unlockAchievement,
 } from "../repositories/userRepository.js";
 
 import { getUserInvites as getUserInvitesDb } from "../repositories/accessRepository.js";
@@ -46,7 +49,7 @@ export const updateUser = async (user, userToUpdateId, userToUpdateData) => {
     throwError(401);
   }
 
-  if (user.role !== "ADMIN") {
+  if (user.role !== "ADMIN" && user.id !== userToUpdateId) {
     throwError(403);
   }
 
@@ -58,16 +61,15 @@ export const updateUser = async (user, userToUpdateId, userToUpdateData) => {
     userToUpdateData.id = userToUpdateId;
   }
 
-  if (userToUpdateId != userToUpdateData.id) {
-    throwError(400);
-  }
-
   const existsUser = await getUserByIdDb(userToUpdateId);
   if (!existsUser) {
     throwError(404);
   }
 
-  const updatedUser = await updateUserDb(userToUpdateData);
+  const sensitiveKeys = ["password", "email", "role", "name"];
+  const deleteSessions = sensitiveKeys.some((key) => key in userToUpdateData);
+
+  const updatedUser = await updateUserDb(userToUpdateData, deleteSessions);
   return updatedUser;
 };
 
@@ -98,3 +100,13 @@ export const getUserInvites = async (currentUser) => {
   return invites;
 };
 
+export const checkAndUnlockAchievements = async (userId) => {
+  const completedTasks = await completedTasksCount(userId);
+  const achievementsToUnlock = ACHIEVEMENT_DEFINITIONS.filter(
+    (achievement) => completedTasks >= achievement.requiredTasks,
+  );
+
+  for (const achievement of achievementsToUnlock) {
+    await unlockAchievement(userId, achievement.code);
+  }
+};
