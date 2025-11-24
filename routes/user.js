@@ -10,6 +10,8 @@ import {
   getUserInvites,
 } from "../services/handlers/userHandler.js";
 import { handleError } from "../services/errorHandler.js";
+import { prisma } from "../services/databaseService.js";
+
 
 const router = express.Router();
 router.use(express.json());
@@ -47,14 +49,80 @@ router.get("/getAll", validateAuthorization, async (req, res) => {
   }
 });
 
-router.get("/achievements", validateAuthorization, async (_, res) => {
+const ACHIEVEMENT_DEFINITIONS = [
+  { code: "1-TASK", name: "Jude", avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=Jude", requiredTasks: 1 },
+  { code: "5-TASK", name: "Chase", avatar: "https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=Chase", requiredTasks: 5 },
+  { code: "10-TASK", name: "Kimberly", avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Kimberly", requiredTasks: 10 },
+  { code: "25-TASK", name: "Mason", avatar: "https://api.dicebear.com/9.x/bottts/svg?seed=Mason", requiredTasks: 25 },
+  { code: "50-TASK", name: "Jameson", avatar: "https://api.dicebear.com/9.x/bottts/svg?seed=Jameson", requiredTasks: 50 },
+  { code: "100-TASK", name: "Maria", avatar: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=Maria", requiredTasks: 100 },
+];
+
+router.get("/achievements", validateAuthorization, async (req, res) => {
   try {
-    res.json({
-      data: [
-        { name: "Complete 50 tasks", code: "50-TASK", avatar: "Jude" },
-        { name: "Complete 100 tasks", code: "100-TASK", avatar: "Chase" },
-      ],
+    const userId = req.user.id;
+
+    const completedTasksCount = await prisma.task.count({
+      where: {
+        completedById: userId,
+        status: "DONE",
+      },
     });
+
+    const achievementsToUnlock = ACHIEVEMENT_DEFINITIONS.filter(
+      (achievement) => completedTasksCount >= achievement.requiredTasks
+    );
+
+    for (const achievementDef of ACHIEVEMENT_DEFINITIONS) {
+      await prisma.achievement.upsert({
+        where: { code: achievementDef.code },
+        update: {},
+        create: {
+          code: achievementDef.code,
+          name: achievementDef.name,
+          avatar: achievementDef.avatar,
+        },
+      });
+    }
+
+    for (const achievement of achievementsToUnlock) {
+      const existingAchievement = await prisma.achievement.findUnique({
+        where: { code: achievement.code },
+      });
+
+      if (existingAchievement) {
+        await prisma.userAchievement.upsert({
+          where: {
+            userId_achievementId: {
+              userId: userId,
+              achievementId: existingAchievement.id,
+            },
+          },
+          update: {},
+          create: {
+            userId: userId,
+            achievementId: existingAchievement.id,
+          },
+        });
+      }
+    }
+
+    const unlockedAchievements = await prisma.userAchievement.findMany({
+      where: { userId: userId },
+      include: {
+        achievement: true,
+      },
+    });
+
+    const achievements = unlockedAchievements.map((ua) => ({
+      id: ua.achievement.id,
+      code: ua.achievement.code,
+      name: ua.achievement.name,
+      avatar: ua.achievement.avatar,
+      unlockedAt: ua.unlockedAt,
+    }));
+
+    res.json({ data: achievements });
   } catch (error) {
     console.log(error);
     handleError(error);
