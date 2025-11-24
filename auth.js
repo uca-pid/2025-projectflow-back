@@ -29,8 +29,16 @@ export const auth = betterAuth({
     },
   },
   session: {
+    cookie: {
+      enabled: true,
+      secure: true,
+    },
     fields: {
       role: true,
+    },
+    token: {
+      enabled: true,
+      jwt: true,
     },
   },
   user: {
