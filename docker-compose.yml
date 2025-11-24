@@ -1,0 +1,44 @@
+services:
+  api:
+    build: .
+    container_name: projectflow_express_api
+    command: sh -c "npm install && npx prisma generate && npx prisma migrate dev && npm run start"
+    ports:
+      - "5175:5175"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/mydb
+      NODE_ENV: development
+    depends_on:
+      - db
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+
+  db:
+    image: postgres:latest
+    container_name: projectflow_postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mydb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data\
+
+  studio:
+    build: .
+    command: npx prisma studio
+    ports:
+      - "5555:5555"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/mydb
+    depends_on:
+      - db
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+
+
+volumes:
+  postgres_data:
+

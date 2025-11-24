@@ -1,14 +1,15 @@
+import { ACHIEVEMENT_DEFINITIONS } from "../../utils/achievements.js";
 import { throwError } from "../errorHandler.js";
 import {
   getAllUsers as getAllUsersDb,
   updateUser as updateUserDb,
   getUserById as getUserByIdDb,
   deleteUser as deleteUserDb,
-  getUserInvites as getUserInvitesDb,
-} from "../databaseService.js";
+  completedTasksCount,
+  unlockAchievement,
+} from "../repositories/userRepository.js";
 
-// Import shared auth utilities
-import { isAdmin } from "./authHandler.js";
+import { getUserInvites as getUserInvitesDb } from "../repositories/accessRepository.js";
 
 export const getAllUsers = async (user) => {
   if (user.role !== "ADMIN") {
@@ -19,12 +20,36 @@ export const getAllUsers = async (user) => {
   return users;
 };
 
+export const getUserById = async (user, userId) => {
+  if (!user) {
+    throwError(401);
+  }
+  if (!userId || userId.trim() === "") {
+    throwError(400, "User ID is required");
+  }
+
+  const userFound = await getUserByIdDb(userId.trim());
+  if (!userFound) {
+    throwError(404);
+  }
+
+  if (user.role !== "ADMIN" && userFound.id !== user.id) {
+    return {
+      id: userFound.id,
+      email: userFound.email,
+      name: userFound.name,
+      image: userFound.image,
+    };
+  }
+  return userFound;
+};
+
 export const updateUser = async (user, userToUpdateId, userToUpdateData) => {
   if (!user) {
     throwError(401);
   }
 
-  if (user.role !== "ADMIN") {
+  if (user.role !== "ADMIN" && user.id !== userToUpdateId) {
     throwError(403);
   }
 
@@ -36,16 +61,15 @@ export const updateUser = async (user, userToUpdateId, userToUpdateData) => {
     userToUpdateData.id = userToUpdateId;
   }
 
-  if (userToUpdateId != userToUpdateData.id) {
-    throwError(400);
-  }
-
   const existsUser = await getUserByIdDb(userToUpdateId);
   if (!existsUser) {
     throwError(404);
   }
 
-  const updatedUser = await updateUserDb(userToUpdateData);
+  const sensitiveKeys = ["password", "email", "role", "name"];
+  const deleteSessions = sensitiveKeys.some((key) => key in userToUpdateData);
+
+  const updatedUser = await updateUserDb(userToUpdateData, deleteSessions);
   return updatedUser;
 };
 
@@ -74,4 +98,15 @@ export const deleteUser = async (user, userToDeleteId) => {
 export const getUserInvites = async (currentUser) => {
   const invites = await getUserInvitesDb(currentUser.id);
   return invites;
+};
+
+export const checkAndUnlockAchievements = async (userId) => {
+  const completedTasks = await completedTasksCount(userId);
+  const achievementsToUnlock = ACHIEVEMENT_DEFINITIONS.filter(
+    (achievement) => completedTasks >= achievement.requiredTasks,
+  );
+
+  for (const achievement of achievementsToUnlock) {
+    await unlockAchievement(userId, achievement.code);
+  }
 };
