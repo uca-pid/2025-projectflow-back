@@ -20,6 +20,7 @@ import { throwError } from "../errorHandler.js";
 import {
   getUserById as getUserByIdDb,
   getUserByEmail,
+  incrementUserStat,
 } from "../repositories/userRepository.js";
 
 import { getTaskById as getTaskByIdDb } from "../repositories/taskRepository.js";
@@ -159,9 +160,7 @@ export const inviteUserToTask = async (currentUser, taskId, email) => {
   if (alreadyInvited) {
     throwError(409, "User is already invited to this task");
   }
-  console.log("alreadyInvited", alreadyInvited);
   const alreadyAssigned = await hasAccessToEdit(userToInvite.id, taskId);
-  console.log("alreadyAssigned", alreadyAssigned);
   if (alreadyAssigned) {
     throwError(409, "User is already assigned to this task");
   }
@@ -211,6 +210,7 @@ export const acceptTaskInvitation = async (currentUser, taskId) => {
   }
 
   await deleteInvitation(currentUser.id, taskId);
+  await incrementUserStat(currentUser.id, "tasksAccepted");
   const result = await createAssignment(taskId, currentUser.id);
   return result;
 };
@@ -273,25 +273,18 @@ export const getTaskAssignments = async (currentUser, taskId) => {
 };
 
 export const getTaskSubscriptions = async (currentUser, taskId) => {
-  console.log("Handler - taskId:", taskId); // Add this
-
   if (!taskId || taskId.trim() === "") {
     throwError(400, "Task ID is required");
   }
-  console.log("Passed input validation");
 
   const task = await getTaskByIdDb(taskId);
   if (!task) {
     throwError(404, "Task not found");
   }
-  console.log("Found task in db");
 
   const hasAccess = await hasAccessToView(currentUser.id, taskId);
   if (!hasAccess) {
     throwError(403, "You don't have permission to view this task");
   }
-  console.log("Has access to view task");
-
-  console.log("About to call getTaskSubscriptionsDb with:", taskId); // Add this
   return await getTaskSubscriptionsDb(taskId);
 };

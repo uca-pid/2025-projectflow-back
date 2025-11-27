@@ -190,26 +190,43 @@ model Objective {
 }
 
 model Achievement {
-  id          String    @id @default(cuid())
-  code        String    @unique // e.g. "FIRST_TASK", "10_TASKS_COMPLETED"
-  name        String
-  avatar      String
+  code               String    @id @unique 
+  name               String
+  avatar             String
 
-  userAchievements UserAchievement[]
+  type               AchievementType @default(TASK_COMPLETION)
+  requiredTasks      Int?      
+  requiredReviews    Int?
+  requiredObjectives Int?
+
+  userAchievements   UserAchievement[]
 }
 
 model UserAchievement {
-  id            String   @id @default(cuid())
-  userId        String
-  achievementId String
-  unlockedAt    DateTime @default(now())
+  id              String   @id @default(cuid())
+  userId          String
+  achievementCode String
+  unlockedAt      DateTime @default(now())
 
   user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  achievement  Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  achievement  Achievement @relation(fields: [achievementCode], references: [code], onDelete: Cascade)
 
-  @@unique([userId, achievementId]) // prevents duplicates
+  @@unique([userId, achievementCode]) 
 }
 
+model UserStats {
+  userId          String    @id @unique
+  tasksCreated    Int    @default(0)
+  tasksCompleted  Int    @default(0)
+  tasksAccepted   Int    @default(0)
+  reviewsGiven    Int    @default(0)
+}
+
+enum AchievementType {
+  TASK_COMPLETION
+  TASK_REVIEW
+  TASK_ACCEPTED
+}
 
 enum TaskStatus {
   TODO

@@ -106,8 +106,6 @@ export async function createSubscription(taskId, userIdToAssign) {
 
 // In accessRepository.js
 export async function getTaskSubscriptions(taskId) {
-  console.log("Repository - received taskId:", taskId); // Add this
-
   const result = await prisma.subscription.findMany({
     where: {
       taskId,

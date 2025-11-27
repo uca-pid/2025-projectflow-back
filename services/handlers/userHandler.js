@@ -5,7 +5,7 @@ import {
   updateUser as updateUserDb,
   getUserById as getUserByIdDb,
   deleteUser as deleteUserDb,
-  completedTasksCount,
+  getUserStats,
   unlockAchievement,
 } from "../repositories/userRepository.js";
 
@@ -101,10 +101,38 @@ export const getUserInvites = async (currentUser) => {
 };
 
 export const checkAndUnlockAchievements = async (userId) => {
-  const completedTasks = await completedTasksCount(userId);
-  const achievementsToUnlock = ACHIEVEMENT_DEFINITIONS.filter(
-    (achievement) => completedTasks >= achievement.requiredTasks,
+  const userStats = await getUserStats(userId);
+  console.log("userStats", userStats);
+
+  const completionAchievementsToUnlock = ACHIEVEMENT_DEFINITIONS.filter(
+    (achievement) =>
+      achievement.type === "TASK_COMPLETION" &&
+      userStats?.tasksCompleted >= achievement.required,
   );
+  console.log("completionAchievementsToUnlock", completionAchievementsToUnlock);
+
+  const reviewAchievementsToUnlock = ACHIEVEMENT_DEFINITIONS.filter(
+    (achievement) =>
+      achievement.type === "TASK_REVIEW" &&
+      userStats?.reviewsGiven >= achievement.required,
+  );
+  console.log("reviewAchievementsToUnlock", reviewAchievementsToUnlock);
+
+  const assignedTaskAchievementsToUnlock = ACHIEVEMENT_DEFINITIONS.filter(
+    (achievement) =>
+      achievement.type === "TASK_ACCEPT" &&
+      userStats?.tasksAccepted >= achievement.required,
+  );
+  console.log(
+    "assignedTaskAchievementsToUnlock",
+    assignedTaskAchievementsToUnlock,
+  );
+
+  const achievementsToUnlock = [
+    ...completionAchievementsToUnlock,
+    ...reviewAchievementsToUnlock,
+    ...assignedTaskAchievementsToUnlock,
+  ];
 
   for (const achievement of achievementsToUnlock) {
     await unlockAchievement(userId, achievement.code);

@@ -163,7 +163,6 @@ router.post(
       const { taskId, userId } = req.params;
 
       const result = await acceptUserApplication(req.user, taskId, userId);
-      console.log(JSON.stringify(result, null, 2));
       res.status(200).json({ success: true, data: result });
     } catch (error) {
       res
@@ -271,7 +270,7 @@ router.get("/:taskId/assigned", validateAuthorization, async (req, res) => {
 
     res.status(200).json({ success: true, data: assignedUsers });
   } catch (error) {
-    console.log("Error getting assigned users", error);
+    console.log(error);
     res
       .status(error.statusCode || 500)
       .json({ success: false, message: error.message });
@@ -281,7 +280,6 @@ router.get("/:taskId/assigned", validateAuthorization, async (req, res) => {
 router.get("/:taskId/subscribed", validateAuthorization, async (req, res) => {
   try {
     const { taskId } = req.params;
-    console.log("taskId: ", taskId);
 
     const subscriptions = await getTaskSubscriptions(req.user, taskId);
     const subscribedUsers = subscriptions.map(
@@ -290,7 +288,7 @@ router.get("/:taskId/subscribed", validateAuthorization, async (req, res) => {
 
     res.status(200).json({ success: true, data: subscribedUsers });
   } catch (error) {
-    console.log("Error getting subscribed users", error);
+    console.log(error);
     res
       .status(error.statusCode || 500)
       .json({ success: false, message: error.message });
