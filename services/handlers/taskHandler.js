@@ -11,6 +11,8 @@ import {
   unmarkTaskAsCompleted as unmarkTaskAsCompletedDb,
 } from "../repositories/taskRepository.js";
 
+import { incrementUserStat } from "../repositories/userRepository.js";
+
 import {
   hasAccessToEdit,
   hasAccessToView,
@@ -130,6 +132,7 @@ export const updateTask = async (
 
   if (status === "DONE") {
     await markTaskAsCompletedDb(taskId, user.id);
+    await incrementUserStat(user.id, "tasksCompleted");
   } else {
     if (foundTask.status === "DONE") await unmarkTaskAsCompletedDb(taskId);
   }
@@ -243,6 +246,8 @@ export const createTaskNote = async (
     text.trim(),
     isPositive,
   );
+
+  await incrementUserStat(currentUser.id, "reviewsGiven");
   return note;
 };
 

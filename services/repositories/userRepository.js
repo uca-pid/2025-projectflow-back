@@ -52,15 +52,14 @@ export const isAdmin = (userId) => {
   return user.role === "admin";
 };
 
-export async function completedTasksCount(userId) {
-  return await prisma.task.count({
+export async function getUserStats(userId) {
+  const stats = await prisma.userStats.findUnique({
     where: {
-      completedById: userId,
-      status: "DONE",
+      userId,
     },
   });
+  return stats;
 }
-
 export async function unlockAchievement(userId, achievementCode) {
   const achievement = await prisma.achievement.findUnique({
     where: {
@@ -72,19 +71,17 @@ export async function unlockAchievement(userId, achievementCode) {
     return;
   }
 
-  const achievementId = achievement.id;
-
   await prisma.userAchievement.upsert({
     where: {
-      userId_achievementId: {
+      userId_achievementCode: {
         userId,
-        achievementId,
+        achievementCode,
       },
     },
     update: {},
     create: {
       userId,
-      achievementId,
+      achievementCode,
     },
   });
 }
@@ -100,12 +97,29 @@ export async function getUserAchievements(userId) {
   });
 
   return unlockedAchievements.map((ua) => ({
-    id: ua.achievement.id,
     code: ua.achievement.code,
     name: ua.achievement.name,
     avatar: ua.achievement.avatar,
     unlockedAt: ua.unlockedAt,
   }));
+}
+
+export async function incrementUserStat(userId, statKey) {
+  console.log("incrementUserStat", userId, statKey);
+  await prisma.userStats.upsert({
+    where: {
+      userId,
+    },
+    update: {
+      [statKey]: {
+        increment: 1,
+      },
+    },
+    create: {
+      userId,
+      [statKey]: 1,
+    },
+  });
 }
 
 export async function getAllAchievements() {
