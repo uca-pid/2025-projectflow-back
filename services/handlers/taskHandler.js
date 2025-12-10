@@ -134,9 +134,9 @@ export const updateTask = async (
   if (isPublic !== undefined) updateData.isPublic = isPublic;
   if (recurrenceExpiresAt)
     updateData.recurrenceExpiresAt = new Date(recurrenceExpiresAt);
-  if (recurrenceType) updateData.recurrenceType = recurrenceType;
   if (recurrences) updateData.recurrences = recurrences;
 
+  updateData.recurrenceType = recurrenceType;
   const foundTask = await getTaskByIdDb(taskId);
   if (!foundTask) {
     throwError(404, "Task not found");
