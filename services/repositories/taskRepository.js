@@ -121,6 +121,9 @@ export async function createTask(
   description,
   deadline,
   parentTaskId,
+  recurrenceType = null,
+  recurrenceExpiresAt = null,
+  recurrences = null,
 ) {
   const data = {
     title,
@@ -128,6 +131,11 @@ export async function createTask(
     deadline: deadline ? new Date(deadline) : null,
     creatorId: userId,
     parentTaskId: parentTaskId || null,
+    recurrenceType,
+    recurrenceExpiresAt: recurrenceExpiresAt
+      ? new Date(recurrenceExpiresAt)
+      : null,
+    recurrences,
   };
 
   const task = await prisma.task.create({

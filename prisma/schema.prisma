@@ -113,6 +113,10 @@ model Task {
   parentTask      Task?         @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: Cascade)
   subTasks        Task[]        @relation("TaskHierarchy")
 
+  recurrenceType  Recurrence?
+  recurrenceExpiresAt DateTime?
+  recurrences     Int?  
+
   // Addons
   notes           Note[]        @relation("TaskNotes")
   objectives      Objective[]  @relation("TaskObjectives")
@@ -245,4 +249,11 @@ enum Period {
     WEEK
     MONTH
     YEAR
+}
+
+enum Recurrence {
+    DAILY
+    WEEKLY
+    MONTHLY
+    PARENT
 }

@@ -11,11 +11,20 @@ import {
   unmarkTaskAsCompleted as unmarkTaskAsCompletedDb,
 } from "../repositories/taskRepository.js";
 
+import {
+  calculateNextDeadline,
+  calculateRecurrenceOptions,
+} from "../../utils/recurrenceCalculations.js";
+
 import { incrementUserStat } from "../repositories/userRepository.js";
 
 import {
   hasAccessToEdit,
   hasAccessToView,
+  getTaskAssignments,
+  getTaskSubscriptions,
+  createAssignment,
+  createSubscription,
 } from "../repositories/accessRepository.js";
 
 import {
@@ -113,6 +122,9 @@ export const updateTask = async (
   deadline,
   status,
   isPublic,
+  recurrenceType,
+  recurrenceExpiresAt,
+  recurrences,
 ) => {
   const updateData = {};
   if (title) updateData.title = title;
@@ -120,6 +132,10 @@ export const updateTask = async (
   if (deadline) updateData.deadline = new Date(deadline);
   if (status) updateData.status = status;
   if (isPublic !== undefined) updateData.isPublic = isPublic;
+  if (recurrenceExpiresAt)
+    updateData.recurrenceExpiresAt = new Date(recurrenceExpiresAt);
+  if (recurrenceType) updateData.recurrenceType = recurrenceType;
+  if (recurrences) updateData.recurrences = recurrences;
 
   const foundTask = await getTaskByIdDb(taskId);
   if (!foundTask) {
@@ -133,6 +149,7 @@ export const updateTask = async (
   if (status === "DONE") {
     await markTaskAsCompletedDb(taskId, user.id);
     await incrementUserStat(user.id, "tasksCompleted");
+    await processTaskRecurrence(taskId);
   } else {
     if (foundTask.status === "DONE") await unmarkTaskAsCompletedDb(taskId);
   }
@@ -234,10 +251,7 @@ export const createTaskNote = async (
 
   const hasAccess = await hasAccessToView(currentUser.id, task.id);
   if (!hasAccess) {
-    throwError(
-      403,
-      "Silly Boy! You don't have permission to add notes to this task!",
-    );
+    throwError(403, "You don't have permission to add notes to this task!");
   }
 
   const note = await createNoteDb(
@@ -369,3 +383,83 @@ export const deleteObjective = async (currentUser, taskId, objectiveId) => {
   const objectives = await deleteObjectiveDb(objectiveId);
   return objectives;
 };
+
+async function processTaskRecurrence(taskId, parentId = null) {
+  if (!taskId || taskId.trim() === "") {
+    throwError(400, "Task ID is required");
+  }
+
+  const task = await getTaskByIdDb(taskId);
+  if (!task) {
+    throwError(404, "Task not found");
+  }
+
+  if (!parentId && task.recurrenceType == "PARENT") {
+    return;
+  }
+
+  let parentTask = null;
+  if (parentId || task.parentTaskId) {
+    parentTask = await getTaskByIdDb(parentId || task.parentTaskId);
+  }
+
+  if (task.recurrenceType) {
+    const recurrenceOptions = calculateRecurrenceOptions(
+      task.recurrenceType == "PARENT"
+        ? parentTask.recurrenceType
+        : task.recurrenceType,
+      task.recurrenceType == "PARENT"
+        ? parentTask.recurrenceExpiresAt
+        : task.recurrenceExpiresAt,
+      task.recurrenceType == "PARENT"
+        ? parentTask.recurrences
+        : task.recurrences,
+    );
+
+    const newDeadline = calculateNextDeadline(
+      task.deadline,
+      task.recurrenceType == "PARENT"
+        ? parentTask.recurrenceType
+        : task.recurrenceType,
+      task.recurrenceType == "PARENT"
+        ? parentTask.recurrenceExpiresAt
+        : task.recurrenceExpiresAt,
+    );
+
+    const taskRecurrence = await createTaskDb(
+      task.creatorId,
+      task.title,
+      task.description,
+      newDeadline,
+      parentId || task.parentTaskId,
+      recurrenceOptions.recurrenceType,
+      recurrenceOptions.recurrenceExpiresAt,
+      recurrenceOptions.recurrences,
+    );
+
+    const assignments = await getTaskAssignments(task.id);
+    const subscriptions = await getTaskSubscriptions(task.id);
+
+    for (const assignment of assignments) {
+      await createAssignment(
+        taskRecurrence.id,
+        assignment.userId,
+        assignment.role,
+      );
+    }
+
+    for (const subscription of subscriptions) {
+      await createSubscription(
+        taskRecurrence.id,
+        subscription.userId,
+        subscription.role,
+      );
+    }
+
+    for (const subTask of task.subTasks) {
+      processTaskRecurrence(subTask.id, taskRecurrence.id);
+    }
+
+    return taskRecurrence;
+  }
+}

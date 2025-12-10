@@ -314,7 +314,16 @@ router.get("/:taskId/applied", validateAuthorization, async (req, res) => {
 router.put("/:id", validateAuthorization, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, deadline, status, isPublic } = req.body;
+    const {
+      title,
+      description,
+      deadline,
+      status,
+      isPublic,
+      recurrenceType,
+      recurrenceExpiresAt,
+      recurrences,
+    } = req.body;
     const task = await updateTask(
       req.user,
       id,
@@ -323,6 +332,9 @@ router.put("/:id", validateAuthorization, async (req, res) => {
       deadline,
       status,
       isPublic,
+      recurrenceType,
+      recurrenceExpiresAt,
+      recurrences,
     );
     res.status(200).json({ success: true, data: task });
   } catch (error) {
