@@ -125,6 +125,8 @@ export const updateTask = async (
   recurrenceType,
   recurrenceExpiresAt,
   recurrences,
+  sla,
+  slaStartedAt,
 ) => {
   const updateData = {};
   if (title) updateData.title = title;
@@ -135,7 +137,10 @@ export const updateTask = async (
   if (recurrenceExpiresAt)
     updateData.recurrenceExpiresAt = new Date(recurrenceExpiresAt);
   if (recurrences) updateData.recurrences = recurrences;
+  if (slaStartedAt) updateData.slaStartedAt = new Date(slaStartedAt);
+  if (sla == null) updateData.slaStartedAt = null;
 
+  updateData.sla = sla;
   updateData.recurrenceType = recurrenceType;
   const foundTask = await getTaskByIdDb(taskId);
   if (!foundTask) {
@@ -146,12 +151,13 @@ export const updateTask = async (
     throwError(403, "No access to this task");
   }
 
-  if (status === "DONE") {
+  if (foundTask.status !== "DONE" && status === "DONE") {
     await markTaskAsCompletedDb(taskId, user.id);
     await incrementUserStat(user.id, "tasksCompleted");
     await processTaskRecurrence(taskId);
   } else {
-    if (foundTask.status === "DONE") await unmarkTaskAsCompletedDb(taskId);
+    if (foundTask.status === "DONE" && status !== "DONE")
+      await unmarkTaskAsCompletedDb(taskId);
   }
 
   const task = await updateTaskDb(taskId, updateData);

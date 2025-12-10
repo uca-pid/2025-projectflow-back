@@ -323,6 +323,8 @@ router.put("/:id", validateAuthorization, async (req, res) => {
       recurrenceType,
       recurrenceExpiresAt,
       recurrences,
+      sla,
+      slaStartedAt,
     } = req.body;
     const task = await updateTask(
       req.user,
@@ -335,6 +337,8 @@ router.put("/:id", validateAuthorization, async (req, res) => {
       recurrenceType,
       recurrenceExpiresAt,
       recurrences,
+      sla,
+      slaStartedAt,
     );
     res.status(200).json({ success: true, data: task });
   } catch (error) {

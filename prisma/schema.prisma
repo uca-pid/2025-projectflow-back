@@ -116,6 +116,8 @@ model Task {
   recurrenceType  Recurrence?
   recurrenceExpiresAt DateTime?
   recurrences     Int?  
+  sla             SLA?
+  slaStartedAt    DateTime?
 
   // Addons
   notes           Note[]        @relation("TaskNotes")
@@ -256,4 +258,9 @@ enum Recurrence {
     WEEKLY
     MONTHLY
     PARENT
+}
+
+enum SLA {
+    CRITICAL
+    NORMAL
 }
